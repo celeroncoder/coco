@@ -40,9 +40,10 @@ function ensureFrameSize(frame: Frame, rows: number, cols: number): Frame {
   const result: Frame = []
   for (let r = 0; r < rows; r++) {
     const row = frame[r] || []
-    result.push([])
+    const outRow: number[] = []
+    result.push(outRow)
     for (let c = 0; c < cols; c++) {
-      result[r][c] = row[c] ?? 0
+      outRow[c] = row[c] ?? 0
     }
   }
   return result
@@ -125,9 +126,10 @@ function emptyFrame(rows: number, cols: number): Frame {
 }
 
 function setPixel(frame: Frame, row: number, col: number, value: number): void {
-  if (row >= 0 && row < frame.length && col >= 0 && col < frame[0].length) {
-    frame[row][col] = value
-  }
+  const rowValues = frame[row]
+  if (!rowValues) return
+  if (col < 0 || col >= rowValues.length) return
+  rowValues[col] = value
 }
 
 export const digits: Frame[] = [
@@ -293,7 +295,8 @@ export function vu(columns: number, levels: number[]): Frame {
   const frame = emptyFrame(rows, columns)
 
   for (let col = 0; col < Math.min(columns, levels.length); col++) {
-    const level = Math.max(0, Math.min(1, levels[col]))
+    const rawLevel = levels[col] ?? 0
+    const level = Math.max(0, Math.min(1, rawLevel))
     const height = Math.floor(level * rows)
 
     for (let row = 0; row < rows; row++) {
@@ -307,7 +310,7 @@ export function vu(columns: number, levels: number[]): Frame {
         } else {
           brightness = 0.6
         }
-        frame[row][col] = brightness
+        setPixel(frame, row, col, brightness)
       }
     }
   }
@@ -402,7 +405,9 @@ export const snake: Frame[] = (() => {
     for (let i = 0; i < snakeLength; i++) {
       const idx = frame - i
       if (idx >= 0 && idx < path.length) {
-        const [y, x] = path[idx]
+        const point = path[idx]
+        if (!point) continue
+        const [y, x] = point
         const brightness = 1 - i / snakeLength
         setPixel(f, y, x, brightness)
       }
@@ -457,7 +462,10 @@ export const Matrix = React.forwardRef<HTMLDivElement, MatrixProps>(
       }
 
       if (frames && frames.length > 0) {
-        return ensureFrameSize(frames[frameIndex] || frames[0], rows, cols)
+        const safeFrame = frames[frameIndex] ?? frames[0]
+        if (safeFrame) {
+          return ensureFrameSize(safeFrame, rows, cols)
+        }
       }
 
       return ensureFrameSize([], rows, cols)
@@ -467,9 +475,10 @@ export const Matrix = React.forwardRef<HTMLDivElement, MatrixProps>(
       const positions: CellPosition[][] = []
 
       for (let row = 0; row < rows; row++) {
-        positions[row] = []
+        const rowPositions: CellPosition[] = []
+        positions[row] = rowPositions
         for (let col = 0; col < cols; col++) {
-          positions[row][col] = {
+          rowPositions[col] = {
             x: col * (size + gap),
             y: row * (size + gap),
           }

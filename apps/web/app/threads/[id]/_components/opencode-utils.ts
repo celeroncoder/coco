@@ -47,14 +47,21 @@ export function buildModelGroups(
         ? rawModels
         : Object.values(rawModels as Record<string, unknown>);
       const options = models
-        .map((m) => ({
-          id: String(m.id ?? m.model ?? "default"),
-          label: String(m.label ?? m.name ?? m.id ?? m.model ?? "Default"),
-        }))
+        .map((model) => toModelOption(model))
         .filter((m) => m.id.length > 0);
       return { label, options };
     })
     .filter((group) => group.options.length > 0);
+}
+
+function toModelOption(model: unknown): { id: string; label: string } {
+  if (!model || typeof model !== "object") {
+    return { id: "", label: "" };
+  }
+  const m = model as Record<string, unknown>;
+  const id = String(m.id ?? m.model ?? "default");
+  const label = String(m.label ?? m.name ?? m.id ?? m.model ?? "Default");
+  return { id, label };
 }
 
 export function translatePartToEvents(part: Record<string, unknown>): RunEvent[] {

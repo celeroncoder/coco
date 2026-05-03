@@ -4,6 +4,7 @@ node_modules
 dist
 out
 build
+*.bun-build
 
 .env
 .env.prod
