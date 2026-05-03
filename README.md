@@ -72,6 +72,106 @@ bun --filter @coco/daemon start
 
 Config is saved to `~/.coco/config.json` after pairing.
 
+## Local Production Build (Web + Daemon)
+
+### Web app (production-like)
+
+```bash
+# Build
+bun --filter @coco/web build
+
+# Run locally in production mode
+cd apps/web
+NEXT_PUBLIC_CONVEX_URL=... \
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=... \
+CLERK_SECRET_KEY=... \
+bun run start
+```
+
+### Daemon (production-like)
+
+```bash
+# Build a local binary
+bun --filter @coco/daemon build
+
+# Run the built binary
+./apps/daemon/dist/coco-agent pair --server http://localhost:3000
+./apps/daemon/dist/coco-agent start
+```
+
+Set `COCO_SERVER` to point at your deployed web app if you're not using the `--server` flag.
+
+## Deployment
+
+### Convex
+
+```bash
+bun --filter @coco/convex deploy
+```
+
+### Web app
+
+This repo assumes a Vercel deploy for `apps/web`. If you deploy elsewhere, use the
+same `apps/web` build output.
+
+```bash
+cd apps/web
+bun run build
+bun run start
+```
+
+Make sure your production env has:
+
+- `NEXT_PUBLIC_CONVEX_URL`
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
+- `CLERK_SECRET_KEY`
+
+## Release Pipeline
+
+The CI workflow runs on pushes to `main`:
+
+- Builds the daemon into platform binaries and uploads them as workflow artifacts.
+
+On `main`, it also creates a tagged GitHub Release and attaches the daemon
+artifacts.
+
+Artifacts show up under the GitHub Actions run as:
+
+- `coco-agent-darwin-arm64.tar.gz`
+- `coco-agent-linux-x64.tar.gz`
+- `coco-agent-windows-x64.zip`
+
+CI secrets expected by the workflow:
+
+- (none)
+
+To use a built binary locally:
+
+```bash
+# macOS / Linux
+tar -xzf coco-agent-*.tar.gz
+./coco-agent pair --server https://your-app.example.com
+./coco-agent start
+```
+
+```powershell
+# Windows
+Expand-Archive coco-agent-windows-x64.zip -DestinationPath .
+./coco-agent.exe pair --server https://your-app.example.com
+./coco-agent.exe start
+```
+
+## Production Checklist
+
+- Convex deployed; `CONVEX_DEPLOYMENT` and `CONVEX_URL` are correct.
+- Clerk production keys in place; `CLERK_JWT_ISSUER_DOMAIN` set in Convex env.
+- Web app env vars set (see Deployment section).
+- `COCO_SERVER` points at the production URL for daemon installs.
+- Domain, HTTPS, and CORS verified end-to-end (web + daemon).
+- Smoke test: pair a device, create a workspace, start a thread, run a prompt.
+- Monitor logs for `apps/web` and Convex, confirm no auth or polling errors.
+- Release artifacts downloadable from CI and verified on macOS, Linux, Windows.
+
 ## Project Structure
 
 ```

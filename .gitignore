@@ -6,6 +6,7 @@ out
 build
 
 .env
+.env.prod
 .env.local
 .env.*.local
 !.env.example
