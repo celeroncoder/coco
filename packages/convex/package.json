@@ -10,6 +10,7 @@
     "./dataModel": "./convex/_generated/dataModel.d.ts"
   },
   "scripts": {
+    "codegen": "convex codegen",
     "dev": "convex dev",
     "deploy": "convex deploy",
     "typecheck": "tsc --noEmit"
