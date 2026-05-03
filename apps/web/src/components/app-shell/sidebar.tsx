@@ -36,7 +36,7 @@ import { Button } from "~/components/ui/button";
 import { env } from "~/env/client";
 import { agentMeta, defaultModeFor } from "~/lib/agents";
 import { cn } from "~/lib/utils";
-import { Matrix, pulse } from "@/components/ui/matrix";
+import { loader, Matrix, pulse } from "@/components/ui/matrix";
 
 export function AppSidebar() {
   const pathname = usePathname();
@@ -44,6 +44,7 @@ export function AppSidebar() {
   return (
     <Sidebar variant="inset" collapsible="icon">
       <SidebarHeader>
+        <Link href="/" passHref>
         <div className="flex items-center gap-2 px-1 py-1">
           <div className="flex size-7 items-center justify-center rounded-md dark:bg-foreground">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -51,12 +52,13 @@ export function AppSidebar() {
               src="/icons8-coco-30.png"
               alt="coco"
               className="size-5 object-contain"
-            />
+              />
           </div>
           <span className="font-display text-sm font-medium tracking-tight">
             coco
           </span>
         </div>
+              </Link>
       </SidebarHeader>
 
       <SidebarContent>
@@ -120,7 +122,7 @@ function ThreadsSection() {
   return (
     <SidebarGroup>
       <SidebarGroupContent className="flex flex-col gap-2">
-        <div className="relative">
+        <div className="relative w-full">
           <Search
             size={ICON_SIZES.sm}
             strokeWidth={1.5}
@@ -135,7 +137,7 @@ function ThreadsSection() {
         </div>
 
         {!groups && (
-          <div className="flex items-center p-2">
+          <div className="flex items-center p-2 justify-center py-10">
             <Matrix size={3} rows={7} cols={7} frames={pulse} fps={12} />
           </div>
         )}

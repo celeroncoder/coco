@@ -569,11 +569,11 @@ function ToolCallRow({ call, isFirst, isLast, now }: ToolCallRowProps) {
               error
             </span>
           )}
-          {call.startedAt && (
+          {/* {call.startedAt && (
             <span className="ml-auto shrink-0 font-mono text-label-2xs text-muted-foreground/70 tabular-nums">
               {formatRelative(call.startedAt, now)}
             </span>
-          )}
+          )} */}
         </button>
 
         <AnimatePresence initial={false}>

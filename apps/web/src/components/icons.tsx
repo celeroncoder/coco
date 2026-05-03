@@ -1,3 +1,5 @@
+"use client"
+
 // Phosphor icons re-exported under the names previously used from
 // `lucide-react`, with a thin wrapper that accepts the lucide-style
 // `size` / `strokeWidth` / `className` props so call sites don't need to change
