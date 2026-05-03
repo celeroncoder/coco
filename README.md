@@ -126,6 +126,10 @@ Make sure your production env has:
 - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
 - `CLERK_SECRET_KEY`
 
+If you're deploying on Vercel from the repo root, set `CONVEX_DEPLOY_KEY`
+so the build can run `convex codegen` (the generated `@coco/convex/api`
+files are not committed).
+
 ## Release Pipeline
 
 The CI workflow runs on pushes to `main`:
