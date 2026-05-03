@@ -2,7 +2,7 @@
 
 import { api } from "@coco/convex/api";
 import { useQuery } from "convex/react";
-import { ChevronRight, MessagesSquare } from "@/components/icons";
+import { ChevronRight, ICON_SIZES, MessagesSquare } from "@/components/icons";
 import Link from "next/link";
 import { agentMeta } from "~/lib/agents";
 
@@ -34,7 +34,7 @@ export function ThreadsClient() {
             >
               <div className="flex min-w-0 items-center gap-3">
                 <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                  <MessagesSquare size={16} strokeWidth={1.2} />
+                  <MessagesSquare size={ICON_SIZES.lg} strokeWidth={1.2} />
                 </div>
                 <div className="flex min-w-0 flex-col gap-0.5">
                   <div className="truncate text-sm font-medium">
@@ -48,7 +48,7 @@ export function ThreadsClient() {
               </div>
               <div className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
                 {new Date(t._creationTime).toLocaleString()}
-                <ChevronRight size={14} strokeWidth={1.2} />
+                <ChevronRight size={ICON_SIZES.md} strokeWidth={1.2} />
               </div>
             </Link>
           ))}

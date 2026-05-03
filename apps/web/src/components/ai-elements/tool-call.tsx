@@ -1,6 +1,6 @@
 "use client";
 
-import { Wrench } from "@/components/icons";
+import { ICON_SIZES, Wrench } from "@/components/icons";
 import { useState } from "react";
 import { cn } from "~/lib/utils";
 
@@ -34,7 +34,7 @@ export function ToolCall({
         )}
       >
         <Wrench
-          size={10}
+          size={ICON_SIZES.xs}
           strokeWidth={1.5}
           className="shrink-0 text-muted-foreground/70"
         />

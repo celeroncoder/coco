@@ -3,7 +3,7 @@
 import { api } from "@coco/convex/api";
 import type { Id } from "@coco/convex/dataModel";
 import { useMutation, useQuery } from "convex/react";
-import { Folder, Pencil, Plus, Trash2 } from "@/components/icons";
+import { Folder, ICON_SIZES, Pencil, Plus, Trash2 } from "@/components/icons";
 import Link from "next/link";
 import { useState } from "react";
 import { Button } from "~/components/ui/button";
@@ -89,7 +89,7 @@ export function WorkspacesClient() {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2 text-sm font-medium">
                         <Folder
-                          size={16}
+                          size={ICON_SIZES.lg}
                           strokeWidth={1.2}
                           className="text-muted-foreground"
                         />
@@ -115,7 +115,7 @@ export function WorkspacesClient() {
                           }
                           aria-label="Remove"
                         >
-                          <Trash2 size={14} strokeWidth={1.2} />
+                          <Trash2 size={ICON_SIZES.md} strokeWidth={1.2} />
                         </Button>
                       </div>
                     </td>
@@ -165,7 +165,7 @@ function NewWorkspaceModal({
       <DialogTrigger
         render={
           <Button size="sm">
-            <Plus size={14} strokeWidth={1.5} />
+            <Plus size={ICON_SIZES.md} strokeWidth={1.5} />
             New workspace
           </Button>
         }
@@ -250,7 +250,7 @@ function EditWorkspaceModal({
       <DialogTrigger
         render={
           <Button variant="ghost" size="icon-xs" aria-label="Edit">
-            <Pencil size={14} strokeWidth={1.2} />
+            <Pencil size={ICON_SIZES.md} strokeWidth={1.2} />
           </Button>
         }
       />

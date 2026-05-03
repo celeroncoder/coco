@@ -8,6 +8,7 @@ import {
   ArrowUp,
   ChevronDown,
   Copy,
+  ICON_SIZES,
   MoreHorizontal,
   Sparkles,
   Square,
@@ -465,7 +466,7 @@ export function ThreadDetailClient({ threadId }: { threadId: string }) {
             onClick={() => router.back()}
             aria-label="Back"
           >
-            <ArrowLeft size={14} strokeWidth={1.5} />
+            <ArrowLeft size={ICON_SIZES.md} strokeWidth={1.5} />
           </Button>
           <h1 className="truncate text-xs text-muted-foreground">
             {thread.title}
@@ -475,7 +476,7 @@ export function ThreadDetailClient({ threadId }: { threadId: string }) {
           <DropdownMenuTrigger
             render={
               <Button variant="ghost" size="icon-xs">
-                <MoreHorizontal size={14} strokeWidth={1.5} />
+                <MoreHorizontal size={ICON_SIZES.md} strokeWidth={1.5} />
               </Button>
             }
           />
@@ -486,7 +487,7 @@ export function ThreadDetailClient({ threadId }: { threadId: string }) {
                 router.push("/threads");
               }}
             >
-              <Trash2 size={14} strokeWidth={1.5} />
+              <Trash2 size={ICON_SIZES.md} strokeWidth={1.5} />
               Delete thread
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -552,7 +553,7 @@ export function ThreadDetailClient({ threadId }: { threadId: string }) {
             className="pointer-events-auto flex size-7 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm transition-colors hover:bg-muted hover:text-foreground"
             aria-label="Scroll to bottom"
           >
-            <ChevronDown size={13} />
+            <ChevronDown size={ICON_SIZES.md} />
           </button>
         </div>
       )}
@@ -805,7 +806,7 @@ function Composer({
           aria-label="Send"
           className="ml-1 shrink-0"
         >
-          <ArrowUp size={14} strokeWidth={1.5} />
+          <ArrowUp size={ICON_SIZES.md} strokeWidth={1.5} />
         </Button>
       </div>
     </form>
@@ -852,7 +853,7 @@ function PillSelect({
             )}
           >
             <span className="truncate">{current?.label ?? value}</span>
-            <ChevronDown size={12} strokeWidth={1.5} className="shrink-0" />
+            <ChevronDown size={ICON_SIZES.sm} strokeWidth={1.5} className="shrink-0" />
           </button>
         }
       />
@@ -1108,7 +1109,7 @@ function MessageBubble({
             onClick={handleCopy}
             className="inline-flex items-center gap-1 bg-transparent p-0 text-label-2xs text-muted-foreground/70 transition-colors hover:text-muted-foreground"
           >
-            <Copy size={11} />
+            <Copy size={ICON_SIZES.sm} />
             {copied ? "Copied" : "Copy"}
           </button>
         </div>
@@ -1124,7 +1125,7 @@ function MessageBubble({
       {/* error card */}
       {hasError && (
         <div className="flex items-start gap-3 rounded-lg border border-error-base/20 bg-error-base/5 py-3 pl-3 pr-4 [border-left:2px_solid_var(--color-error-base)]">
-          <TriangleAlert size={14} className="mt-0.5 shrink-0 text-error-base" />
+          <TriangleAlert size={ICON_SIZES.md} className="mt-0.5 shrink-0 text-error-base" />
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
             <span className="text-label-xs font-medium text-error-base">
               hit an error

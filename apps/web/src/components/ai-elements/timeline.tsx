@@ -14,6 +14,7 @@ import {
   FileText,
   Folder,
   Globe,
+  ICON_SIZES,
   Pencil,
   Search,
   Terminal,
@@ -286,7 +287,7 @@ function TimelineItem({ event, isFirst, isLast, depth }: TimelineItemProps) {
                     transition={{ duration: 0.18, ease: easeOut }}
                     className="inline-flex"
                   >
-                    <ChevronRight size={10} strokeWidth={2} />
+                    <ChevronRight size={ICON_SIZES.xs} strokeWidth={2} />
                   </motion.span>
                   {open
                     ? `hide ${childCount} ${childCount === 1 ? "event" : "events"}`
@@ -309,7 +310,7 @@ function TimelineItem({ event, isFirst, isLast, depth }: TimelineItemProps) {
                     transition={{ duration: 0.18, ease: easeOut }}
                     className="inline-flex"
                   >
-                    <ChevronRight size={10} strokeWidth={2} />
+                    <ChevronRight size={ICON_SIZES.xs} strokeWidth={2} />
                   </motion.span>
                   {sourceOpen ? "hide source" : "show source"}
                 </button>
@@ -525,7 +526,7 @@ function ToolCallRow({ call, isFirst, isLast, now }: ToolCallRowProps) {
             iconColor,
           )}
         >
-          <Icon size={10} strokeWidth={1.75} />
+          <Icon size={ICON_SIZES.xs} strokeWidth={1.75} />
           {running && (
             <span className="absolute -inset-0.5 animate-ping rounded-full bg-muted-foreground/30" />
           )}

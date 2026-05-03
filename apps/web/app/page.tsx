@@ -1,4 +1,4 @@
-import { ArrowRight, FolderTree, HardDrive, MessagesSquare } from "@/components/icons";
+import { ArrowRight, FolderTree, HardDrive, ICON_SIZES, MessagesSquare } from "@/components/icons";
 import Link from "next/link";
 
 import { PageHeader } from "~/components/app-shell/page-header";
@@ -39,13 +39,13 @@ export default function Home() {
             className="group flex flex-col gap-3 rounded-xl border bg-card p-5 transition-colors hover:border-foreground"
           >
             <div className="flex size-9 items-center justify-center rounded-lg bg-muted text-muted-foreground group-hover:bg-foreground group-hover:text-background">
-              <item.icon size={16} strokeWidth={1.2} />
+              <item.icon size={ICON_SIZES.lg} strokeWidth={1.2} />
             </div>
             <div className="flex flex-col gap-0.5">
               <div className="flex items-center gap-1.5 text-label-md font-medium">
                 {item.title}
                 <ArrowRight
-                  size={14}
+                  size={ICON_SIZES.md}
                   strokeWidth={1.2}
                   className="opacity-0 transition-opacity group-hover:opacity-100"
                 />

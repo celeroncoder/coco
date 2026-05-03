@@ -3,7 +3,7 @@
 import { api } from "@coco/convex/api";
 import type { Id } from "@coco/convex/dataModel";
 import { useMutation, useQuery } from "convex/react";
-import { Cpu, Monitor, Plus, Trash2 } from "@/components/icons";
+import { Cpu, ICON_SIZES, Monitor, Plus, Trash2 } from "@/components/icons";
 import { useState } from "react";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -53,7 +53,7 @@ export function DevicesClient() {
               >
                 <div className="flex gap-3">
                   <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                    <Monitor size={16} strokeWidth={1.2} />
+                    <Monitor size={ICON_SIZES.lg} strokeWidth={1.2} />
                   </div>
                   <div className="flex flex-col gap-0.5">
                     <div className="flex items-center gap-2 text-sm font-medium">
@@ -67,7 +67,7 @@ export function DevicesClient() {
                     </div>
                     <div className="mt-2 flex items-center text-xs text-muted-foreground">
                       <span className="inline-flex items-center gap-1">
-                        <Cpu size={12} strokeWidth={1.2} />
+                        <Cpu size={ICON_SIZES.sm} strokeWidth={1.2} />
                         {d.platform ?? "unknown"}
                       </span>
                       <span className="mx-1.5">·</span>
@@ -81,7 +81,7 @@ export function DevicesClient() {
                   onClick={() => remove({ deviceId: d._id as Id<"devices"> })}
                   aria-label="Remove device"
                 >
-                  <Trash2 size={14} strokeWidth={1.2} />
+                  <Trash2 size={ICON_SIZES.md} strokeWidth={1.2} />
                 </Button>
               </div>
             );
@@ -119,7 +119,7 @@ function PairDeviceModal() {
       <DialogTrigger
         render={
           <Button size="sm">
-            <Plus size={14} strokeWidth={1.5} />
+            <Plus size={ICON_SIZES.md} strokeWidth={1.5} />
             Pair device
           </Button>
         }
