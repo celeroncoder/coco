@@ -23,6 +23,7 @@ import {
 } from "@/components/icons";
 import { useMemo, useState, type ReactNode } from "react";
 import { cn } from "~/lib/utils";
+import { EditDiff, parseEditArgs } from "./edit-diff";
 
 export type TimelineStatus =
   | "error"
@@ -587,12 +588,32 @@ function ToolCallRow({ call, isFirst, isLast, now }: ToolCallRowProps) {
               className="overflow-hidden"
             >
               <div className="mt-1 space-y-1 border-l border-border pl-2">
-                {call.args && (
-                  <pre className="overflow-x-auto whitespace-pre-wrap break-all font-mono text-label-2xs text-muted-foreground">
-                    {call.args}
-                  </pre>
-                )}
-                {call.result && (
+                {call.args && (() => {
+                  const parsed = parseEditArgs(call.args);
+                  if (parsed) {
+                    if ("truncated" in parsed) {
+                      return (
+                        <div className="font-mono text-label-2xs text-muted-foreground/70">
+                          args truncated — diff unavailable
+                        </div>
+                      );
+                    }
+                    if (error) {
+                      return (
+                        <div className="rounded border border-error-base/30 bg-error-base/5 px-2 py-1.5 font-mono text-label-2xs text-error-base">
+                          {call.result ?? "tool call failed"}
+                        </div>
+                      );
+                    }
+                    return <EditDiff {...parsed} />;
+                  }
+                  return (
+                    <pre className="overflow-x-auto whitespace-pre-wrap break-all font-mono text-label-2xs text-muted-foreground">
+                      {call.args}
+                    </pre>
+                  );
+                })()}
+                {call.result && !parseEditArgs(call.args ?? "") && (
                   <pre className="overflow-x-auto whitespace-pre-wrap break-all font-mono text-label-2xs text-muted-foreground/70">
                     {call.result}
                   </pre>

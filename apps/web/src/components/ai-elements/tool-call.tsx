@@ -3,6 +3,7 @@
 import { ICON_SIZES, Wrench } from "@/components/icons";
 import { useState } from "react";
 import { cn } from "~/lib/utils";
+import { EditDiff, parseEditArgs } from "./edit-diff";
 
 export type ToolCallProps = {
   name: string;
@@ -51,12 +52,32 @@ export function ToolCall({
       </button>
       {open && hasBody && (
         <div className="ml-3 space-y-1 border-l border-border pl-2 py-0.5">
-          {args && (
-            <pre className="overflow-x-auto whitespace-pre-wrap break-all font-mono text-label-2xs text-muted-foreground">
-              {args}
-            </pre>
-          )}
-          {result && (
+          {args && (() => {
+            const parsed = parseEditArgs(args);
+            if (parsed) {
+              if ("truncated" in parsed) {
+                return (
+                  <div className="font-mono text-label-2xs text-muted-foreground/70">
+                    args truncated — diff unavailable
+                  </div>
+                );
+              }
+              if (state === "error") {
+                return (
+                  <div className="rounded border border-error-base/30 bg-error-base/5 px-2 py-1.5 font-mono text-label-2xs text-error-base">
+                    {result ?? "tool call failed"}
+                  </div>
+                );
+              }
+              return <EditDiff {...parsed} />;
+            }
+            return (
+              <pre className="overflow-x-auto whitespace-pre-wrap break-all font-mono text-label-2xs text-muted-foreground">
+                {args}
+              </pre>
+            );
+          })()}
+          {result && !parseEditArgs(args ?? "") && (
             <pre className="overflow-x-auto whitespace-pre-wrap break-all font-mono text-label-2xs text-muted-foreground/70">
               {result}
             </pre>
