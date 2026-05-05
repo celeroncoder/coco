@@ -3,6 +3,15 @@
 import { ICON_SIZES, Wrench } from "@/components/icons";
 import { useState } from "react";
 import { cn } from "~/lib/utils";
+import { BashTerminal, isBashTool, parseBashArgs } from "./bash-terminal";
+import {
+  CodeView,
+  isReadTool,
+  isWriteTool,
+  parseReadArgs,
+  parseWriteArgs,
+  stripReadLineNumbers,
+} from "./code-view";
 import { EditDiff, parseEditArgs } from "./edit-diff";
 
 export type ToolCallProps = {
@@ -52,7 +61,43 @@ export function ToolCall({
       </button>
       {open && hasBody && (
         <div className="ml-3 space-y-1 border-l border-border pl-2 py-0.5">
-          {args && (() => {
+          {args && isBashTool(name) && (() => {
+            const bash = parseBashArgs(args);
+            if (!bash) return null;
+            return (
+              <BashTerminal
+                command={bash.command}
+                description={bash.description}
+                result={result}
+                error={state === "error"}
+              />
+            );
+          })()}
+          {args && !isBashTool(name) && (() => {
+            if (isWriteTool(name)) {
+              const w = parseWriteArgs(args);
+              if (w && w.kind === "write") {
+                return (
+                  <CodeView
+                    filePath={w.filePath}
+                    code={w.content}
+                    isIncomplete={w.isIncomplete || state === "running"}
+                  />
+                );
+              }
+            }
+            if (isReadTool(name)) {
+              const r = parseReadArgs(args);
+              if (r && r.kind === "read" && result) {
+                return (
+                  <CodeView
+                    filePath={r.filePath}
+                    code={stripReadLineNumbers(result)}
+                    isIncomplete={state === "running"}
+                  />
+                );
+              }
+            }
             const parsed = parseEditArgs(args);
             if (parsed) {
               if ("truncated" in parsed) {
@@ -77,11 +122,15 @@ export function ToolCall({
               </pre>
             );
           })()}
-          {result && !parseEditArgs(args ?? "") && (
-            <pre className="overflow-x-auto whitespace-pre-wrap break-all font-mono text-label-2xs text-muted-foreground/70">
-              {result}
-            </pre>
-          )}
+          {result &&
+            !isBashTool(name) &&
+            !isWriteTool(name) &&
+            !isReadTool(name) &&
+            !parseEditArgs(args ?? "") && (
+              <pre className="overflow-x-auto whitespace-pre-wrap break-all font-mono text-label-2xs text-muted-foreground/70">
+                {result}
+              </pre>
+            )}
         </div>
       )}
     </div>

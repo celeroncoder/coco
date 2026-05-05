@@ -23,6 +23,15 @@ import {
 } from "@/components/icons";
 import { useMemo, useState, type ReactNode } from "react";
 import { cn } from "~/lib/utils";
+import { BashTerminal, isBashTool, parseBashArgs } from "./bash-terminal";
+import {
+  CodeView,
+  isReadTool,
+  isWriteTool,
+  parseReadArgs,
+  parseWriteArgs,
+  stripReadLineNumbers,
+} from "./code-view";
 import { EditDiff, parseEditArgs } from "./edit-diff";
 
 export type TimelineStatus =
@@ -588,7 +597,43 @@ function ToolCallRow({ call, isFirst, isLast, now }: ToolCallRowProps) {
               className="overflow-hidden"
             >
               <div className="mt-1 space-y-1 border-l border-border pl-2">
-                {call.args && (() => {
+                {call.args && isBashTool(call.name) && (() => {
+                  const bash = parseBashArgs(call.args);
+                  if (!bash) return null;
+                  return (
+                    <BashTerminal
+                      command={bash.command}
+                      description={bash.description}
+                      result={call.result}
+                      error={error}
+                    />
+                  );
+                })()}
+                {call.args && !isBashTool(call.name) && (() => {
+                  if (isWriteTool(call.name)) {
+                    const w = parseWriteArgs(call.args);
+                    if (w && w.kind === "write") {
+                      return (
+                        <CodeView
+                          filePath={w.filePath}
+                          code={w.content}
+                          isIncomplete={w.isIncomplete || running}
+                        />
+                      );
+                    }
+                  }
+                  if (isReadTool(call.name)) {
+                    const r = parseReadArgs(call.args);
+                    if (r && r.kind === "read" && call.result) {
+                      return (
+                        <CodeView
+                          filePath={r.filePath}
+                          code={stripReadLineNumbers(call.result)}
+                          isIncomplete={running}
+                        />
+                      );
+                    }
+                  }
                   const parsed = parseEditArgs(call.args);
                   if (parsed) {
                     if ("truncated" in parsed) {
@@ -613,11 +658,15 @@ function ToolCallRow({ call, isFirst, isLast, now }: ToolCallRowProps) {
                     </pre>
                   );
                 })()}
-                {call.result && !parseEditArgs(call.args ?? "") && (
-                  <pre className="overflow-x-auto whitespace-pre-wrap break-all font-mono text-label-2xs text-muted-foreground/70">
-                    {call.result}
-                  </pre>
-                )}
+                {call.result &&
+                  !isBashTool(call.name) &&
+                  !isWriteTool(call.name) &&
+                  !isReadTool(call.name) &&
+                  !parseEditArgs(call.args ?? "") && (
+                    <pre className="overflow-x-auto whitespace-pre-wrap break-all font-mono text-label-2xs text-muted-foreground/70">
+                      {call.result}
+                    </pre>
+                  )}
               </div>
             </motion.div>
           )}
