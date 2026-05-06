@@ -52,6 +52,7 @@ import {
   TreeStructure as PhTreeStructure,
   Warning as PhWarning,
   WarningCircle as PhWarningCircle,
+  Question as PhQuestion,
   Wrench as PhWrench,
   X as PhX,
 } from "@phosphor-icons/react";
@@ -139,6 +140,7 @@ export const Moon = wrap(PhMoon, "Moon");
 export const Monitor = wrap(PhMonitor, "Monitor");
 export const MoreHorizontal = wrap(PhDotsThree, "MoreHorizontal");
 export const Pencil = wrap(PhPencilSimple, "Pencil");
+export const Question = wrap(PhQuestion, "Question");
 export const Plus = wrap(PhPlus, "Plus");
 export const Search = wrap(PhMagnifyingGlass, "Search");
 export const Settings = wrap(PhGearSix, "Settings");

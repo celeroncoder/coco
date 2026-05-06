@@ -2,7 +2,7 @@
 
 import { SignedIn, SignedOut, SignInButton, SignUpButton } from "@clerk/nextjs";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 import { AppSidebar } from "~/components/app-shell/sidebar";
 import {
@@ -33,7 +33,7 @@ export function AuthLayout({ children }: { children: ReactNode }) {
         )}
       </SignedOut>
       <SignedIn>
-        <SidebarProvider>
+        <SidebarProvider style={{ "--sidebar-width": "19.5rem" } as CSSProperties}>
           <AppSidebar />
           <SidebarInset>
             <div className="flex h-12 items-center gap-2 border-b border-border px-3">

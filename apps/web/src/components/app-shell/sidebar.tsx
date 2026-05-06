@@ -5,345 +5,276 @@ import { api } from "@coco/convex/api";
 import type { Doc, Id } from "@coco/convex/dataModel";
 import { useMutation, useQuery } from "convex/react";
 import {
-  ChevronDown,
-  ChevronRight,
-  HardDrive,
-  ICON_SIZES,
-  MessageCircle,
   Moon,
+  MoreHorizontal,
+  Pencil,
   Plus,
-  Search,
+  Settings,
   Sun,
-  X,
+  ICON_SIZES,
 } from "@/components/icons";
 import { useTheme } from "next-themes";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Sidebar } from "~/components/ui/sidebar";
 import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  useSidebar,
-} from "~/components/ui/sidebar";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "~/components/ui/dialog";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
-import { env } from "~/env/client";
-import { agentMeta, defaultModeFor } from "~/lib/agents";
 import { cn } from "~/lib/utils";
-import { loader, Matrix, pulse } from "@/components/ui/matrix";
-import { useIsMobile } from "~/hooks/use-mobile";
+import { defaultModeFor } from "~/lib/agents";
+
+const WS_COLORS = [
+  "#1e5c3a",
+  "#1a3d6b",
+  "#6b2d82",
+  "#3d1a7a",
+  "#7a1d6e",
+  "#0f4f4f",
+  "#7a1d1d",
+  "#4a5c0d",
+  "#1a4f3a",
+  "#1d3d82",
+  "#7a3d0d",
+  "#4a0d5c",
+];
+
+function wsColor(name: string): string {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (name.charCodeAt(i) + ((h << 5) - h)) | 0;
+  return WS_COLORS[Math.abs(h) % WS_COLORS.length] ?? WS_COLORS[0]!;
+}
 
 export function AppSidebar() {
-  const pathname = usePathname();
-  const { setOpenMobile } = useSidebar();
-  const isMobile = useIsMobile();
-
-  return (
-    <Sidebar variant="inset" collapsible="icon">
-      <SidebarHeader>
-        <div className="flex items-center gap-2 px-1 py-1">
-          <Link href="/" passHref className="flex min-w-0 flex-1 items-center gap-2">
-            <div className="flex size-7 shrink-0 items-center justify-center rounded-md dark:bg-foreground">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/icons8-coco-30.png"
-                alt="coco"
-                className="size-5 object-contain"
-              />
-            </div>
-            <span className="font-display text-sm font-medium tracking-tight group-data-[collapsible=icon]:hidden">
-              coco
-            </span>
-          </Link>
-          {isMobile && (
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Close sidebar"
-              onClick={() => setOpenMobile(false)}
-            >
-              <X size={ICON_SIZES.lg} strokeWidth={2} />
-            </Button>
-          )}
-        </div>
-      </SidebarHeader>
-
-      <SidebarContent>
-        <ThreadsSection />
-      </SidebarContent>
-
-      <SidebarFooter>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              isActive={pathname === "/devices"}
-              tooltip="Devices"
-              render={<Link href="/devices" />}
-            >
-              <HardDrive size={ICON_SIZES.md} strokeWidth={1.5} />
-              <span className="group-data-[collapsible=icon]:hidden">Devices</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-        <FooterUserBar />
-      </SidebarFooter>
-    </Sidebar>
-  );
-}
-
-function ThreadsSection() {
-  const threads = useQuery(api.threads.list, {});
   const workspaces = useQuery(api.workspaces.list, {});
-  const [filter, setFilter] = useState("");
-  const pathname = usePathname();
-  const isMobile = useIsMobile();
-
-  const groups = useMemo(() => {
-    if (!threads || !workspaces) return null;
-    const filtered = filter
-      ? threads.filter((t) =>
-          t.title.toLowerCase().includes(filter.toLowerCase()),
-        )
-      : threads;
-    const byWs = new Map<
-      string,
-      { ws: Doc<"workspaces"> | null; items: Doc<"threads">[] }
-    >(workspaces.map((w) => [w._id, { ws: w, items: [] }]));
-    const unknown = { ws: null, items: [] as Doc<"threads">[] };
-    for (const t of filtered) {
-      const bucket = byWs.get(t.workspaceId);
-      if (bucket) {
-        bucket.items.push(t);
-      } else {
-        unknown.items.push(t);
-      }
-    }
-    const result = Array.from(byWs.values()).sort((a, b) =>
-      (a.ws?.name ?? "~").localeCompare(b.ws?.name ?? "~"),
-    );
-    if (unknown.items.length > 0) {
-      result.push(unknown);
-    }
-    return result;
-  }, [threads, workspaces, filter]);
-
-  return (
-    <SidebarGroup>
-      <SidebarGroupContent className="flex flex-col gap-2">
-        <div className="relative w-full group-data-[collapsible=icon]:hidden">
-          <Search
-            size={isMobile ? ICON_SIZES.md : ICON_SIZES.sm}
-            strokeWidth={1.5}
-            className={cn(
-              "pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground",
-            )}
-          />
-          <Input
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            placeholder="Search threads"
-            className={cn(
-              "pl-7 text-xs",
-              isMobile ? "h-10" : "h-8",
-            )}
-          />
-        </div>
-
-        {!groups && (
-          <div className="flex items-center p-2 justify-center py-10">
-            <Matrix size={3} rows={7} cols={7} frames={pulse} fps={12} />
-          </div>
-        )}
-
-        {groups && groups.length === 0 && (
-          <p className={cn(
-            "px-2 py-1 text-muted-foreground group-data-[collapsible=icon]:hidden",
-            isMobile ? "text-sm" : "text-xs",
-          )}>
-            No threads yet.
-          </p>
-        )}
-
-        {groups?.map(({ ws, items }) => (
-          <ThreadGroup
-            key={ws?._id ?? "unknown"}
-            title={ws?.name ?? "Other"}
-            workspaceId={ws?._id}
-            items={items}
-            activePath={pathname}
-          />
-        ))}
-      </SidebarGroupContent>
-    </SidebarGroup>
-  );
-}
-
-function ThreadGroup({
-  title,
-  workspaceId,
-  items,
-  activePath,
-}: {
-  title: string;
-  workspaceId?: string;
-  items: Doc<"threads">[];
-  activePath: string | null;
-}) {
-  const [open, setOpen] = useState(true);
-  const isMobile = useIsMobile();
-  
-  return (
-    <div className="flex flex-col">
-      <div className={cn(
-        "flex items-center gap-2 px-2 group-data-[collapsible=icon]:hidden",
-        isMobile ? "h-11 py-1.5" : "py-1",
-      )}>
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          className={cn(
-            "flex min-w-0 flex-1 items-center gap-1.5 font-medium uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground",
-            isMobile ? "text-xs" : "text-[10px]",
-          )}
-        >
-          {open ? (
-            <ChevronDown size={ICON_SIZES.sm} strokeWidth={1.5} />
-          ) : (
-            <ChevronRight size={ICON_SIZES.sm} strokeWidth={1.5} />
-          )}
-          <span className="truncate">{title}</span>
-        </button>
-        <span className={cn(
-          "text-muted-foreground group-data-[collapsible=icon]:hidden",
-          isMobile ? "text-xs" : "text-[10px]",
-        )}>{items.length}</span>
-        {workspaceId && (
-          <NewThreadInWorkspace
-            workspaceId={workspaceId}
-            className={cn(isMobile ? "opacity-100" : undefined)}
-          />
-        )}
-      </div>
-      {open && (
-        <SidebarMenu>
-          {items.map((t) => {
-            const active = activePath === `/threads/${t._id}`;
-            const meta = agentMeta(t.agent);
-            const isClaude = t.agent === "claude";
-            return (
-              <SidebarMenuItem key={t._id}>
-                <SidebarMenuButton
-                  isActive={active}
-                  tooltip={`${meta?.label ?? t.agent}${t.mode ? ` · ${t.mode}` : ""}`}
-                  render={<Link href={`/threads/${t._id}`} />}
-                  size="sm"
-                  className={cn(
-                    isMobile && "h-11",
-                  )}
-                >
-                  {isClaude ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={`https://img.logo.dev/claudeai.com?token=${env.NEXT_PUBLIC_LOGO_DEV_TOKEN}&background=transparent`}
-                      alt="Claude logo"
-                      className={cn(
-                        "shrink-0 rounded-sm backdrop-invert",
-                        isMobile ? "size-6" : "size-5",
-                      )}
-                    />
-                  ) : (
-                    <MessageCircle
-                      size={ICON_SIZES.md}
-                      strokeWidth={1.5}
-                      className="shrink-0"
-                    />
-                  )}
-                  <span className={cn(
-                    "flex-1 truncate group-data-[collapsible=icon]:hidden",
-                    isMobile ? "text-sm" : "text-xs",
-                  )}>{t.title}</span>
-                  <span className={cn(
-                    "shrink-0 text-muted-foreground group-data-[collapsible=icon]:hidden",
-                    isMobile ? "text-xs" : "text-[10px]",
-                  )}>
-                    {formatRelative(t._creationTime)}
-                  </span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            );
-          })}
-        </SidebarMenu>
-      )}
-      {open && items.length === 0 && (
-        <div className={cn(
-          "px-2 py-1 text-muted-foreground group-data-[collapsible=icon]:hidden",
-          isMobile ? "text-xs" : "text-[10px]",
-        )}>
-          No threads yet.
-        </div>
-      )}
-    </div>
-  );
-}
-
-function FooterUserBar() {
+  const threads = useQuery(api.threads.list, {});
+  const devices = useQuery(api.devices.list, {});
+  const [selectedWsId, setSelectedWsId] = useState<string | null>(null);
+  const [hoveredWsId, setHoveredWsId] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const isMobile = useIsMobile();
+  const pathname = usePathname();
+
   useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    if (!workspaces?.length) return;
+    if (threads && pathname?.startsWith("/threads/")) {
+      const threadId = pathname.replace("/threads/", "");
+      const t = threads.find((th) => th._id === threadId);
+      if (t) {
+        setSelectedWsId(t.workspaceId);
+        return;
+      }
+    }
+    setSelectedWsId((prev) => prev ?? (workspaces[0]?._id ?? null));
+  }, [workspaces, threads, pathname]);
+
+  const selectedWs = workspaces?.find((w) => w._id === selectedWsId) ?? null;
+
+  const selectedThreads = useMemo(
+    () => threads?.filter((t) => t.workspaceId === selectedWsId) ?? [],
+    [threads, selectedWsId],
+  );
+
+  const hoveredWs = workspaces?.find((w) => w._id === hoveredWsId) ?? null;
+
+  const hoveredThreads = useMemo(
+    () => threads?.filter((t) => t.workspaceId === hoveredWsId).slice(0, 4) ?? [],
+    [threads, hoveredWsId],
+  );
+
+  const hoveredTotal = useMemo(
+    () => threads?.filter((t) => t.workspaceId === hoveredWsId).length ?? 0,
+    [threads, hoveredWsId],
+  );
+
   return (
-    <div className={cn(
-      "flex items-center gap-2 px-2",
-      isMobile ? "h-11 py-1.5" : "py-1.5",
-    )}>
-      <UserButton appearance={{ elements: { avatarBox: cn(isMobile ? "size-8" : "size-7") } }} />
-      <span className={cn(
-        "flex-1 text-muted-foreground group-data-[collapsible=icon]:hidden",
-        isMobile ? "text-sm" : "text-xs",
-      )}>Account</span>
-      <Button
-        type="button"
-        variant="ghost"
-        size={isMobile ? "icon-sm" : "icon-xs"}
-        aria-label="Toggle theme"
-        onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-      >
-        {mounted && resolvedTheme === "dark" ? (
-          <Sun size={ICON_SIZES.sm} strokeWidth={1.5} />
-        ) : (
-          <Moon size={ICON_SIZES.sm} strokeWidth={1.5} />
-        )}
-      </Button>
-    </div>
+    <>
+      <Sidebar collapsible="offcanvas" className="bg-background p-0">
+        <div className="flex h-full">
+          {/* Left workspace strip */}
+          <div className="flex w-[60px] shrink-0 flex-col items-center border-r border-border bg-background">
+            {/* Workspace icon list */}
+            <div className="flex min-h-0 flex-1 flex-col items-center gap-2.5 overflow-y-auto py-2.5 px-1">
+              {workspaces?.map((ws) => {
+                const color = wsColor(ws.name);
+                const isSelected = ws._id === selectedWsId;
+                const isActive = threads?.some(
+                  (t) => t.workspaceId === ws._id && pathname === `/threads/${t._id}`,
+                );
+                return (
+                  <div
+                    key={ws._id}
+                    className="relative shrink-0"
+                    onMouseEnter={() => setHoveredWsId(ws._id)}
+                    onMouseLeave={() => setHoveredWsId(null)}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setSelectedWsId(ws._id)}
+                      style={{ backgroundColor: color }}
+                      className={cn(
+                        "relative flex size-9 cursor-pointer select-none items-center justify-center rounded-md text-[11px] font-semibold tracking-wide text-white/90 transition-all",
+                        isSelected &&
+                          "ring-2 ring-foreground/70 ring-offset-1 ring-offset-background",
+                      )}
+                    >
+                      {ws.name[0]?.toUpperCase()}
+                      {isActive && (
+                        <span className="absolute -right-0.5 -top-0.5 size-2 rounded-full border border-background bg-cyan-400" />
+                      )}
+                    </button>
+
+                    {/* Hover popup */}
+                    {hoveredWsId === ws._id && hoveredWs && (
+                      <div className="absolute left-[calc(100%+6px)] top-0 z-50 w-56 rounded-lg border border-border bg-popover p-2.5 shadow-lg">
+                        <p className="mb-0.5 text-xs font-medium text-foreground">
+                          {hoveredWs.name}
+                        </p>
+                        <p className="mb-1.5 text-[10px] text-muted-foreground">Recent sessions</p>
+                        <div className="flex flex-col gap-0.5">
+                          {hoveredThreads.map((t) => (
+                            <Link
+                              key={t._id}
+                              href={`/threads/${t._id}`}
+                              onClick={() => setSelectedWsId(ws._id)}
+                              className="truncate rounded px-1.5 py-1 text-xs text-foreground/80 hover:bg-accent hover:text-foreground"
+                            >
+                              {t.title}
+                            </Link>
+                          ))}
+                          {hoveredThreads.length === 0 && (
+                            <span className="px-1.5 text-[10px] text-muted-foreground">
+                              No sessions yet
+                            </span>
+                          )}
+                        </div>
+                        {hoveredTotal > 4 && (
+                          <>
+                            <div className="my-1.5 h-px bg-border" />
+                            <button
+                              type="button"
+                              onClick={() => setSelectedWsId(ws._id)}
+                              className="px-1.5 text-xs text-muted-foreground hover:text-foreground"
+                            >
+                              View all sessions
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              {/* Add workspace */}
+              <button
+                type="button"
+                title="Add workspace"
+                onClick={() => setCreateOpen(true)}
+                className="flex size-9 shrink-0 items-center justify-center rounded-md text-muted-foreground/60 transition-colors hover:bg-accent hover:text-muted-foreground"
+              >
+                <Plus size={14} strokeWidth={1.5} />
+              </button>
+            </div>
+
+            {/* Bottom actions */}
+            <div className="flex flex-col items-center gap-0.5 pb-2 pt-1">
+              <div className="flex size-8 items-center justify-center">
+                <UserButton appearance={{ elements: { avatarBox: "size-6" } }} />
+              </div>
+              <Link
+                href="/devices"
+                title="Settings"
+                className="flex size-8 items-center justify-center rounded-md text-muted-foreground/60 transition-colors hover:bg-accent hover:text-muted-foreground"
+              >
+                <Settings size={13} strokeWidth={1.5} />
+              </Link>
+              <button
+                type="button"
+                title="Toggle theme"
+                onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+                className="flex size-8 items-center justify-center rounded-md text-muted-foreground/60 transition-colors hover:bg-accent hover:text-muted-foreground"
+              >
+                {mounted && resolvedTheme === "dark" ? (
+                  <Sun size={13} strokeWidth={1.5} />
+                ) : (
+                  <Moon size={13} strokeWidth={1.5} />
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Right workspace panel */}
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
+            {selectedWs ? (
+              <WorkspacePanel
+                ws={selectedWs}
+                threads={selectedThreads}
+                pathname={pathname}
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center text-[10px] text-muted-foreground">
+                Select a workspace
+              </div>
+            )}
+          </div>
+        </div>
+      </Sidebar>
+
+      {/* Create workspace dialog */}
+      <CreateWorkspaceDialog
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        devices={devices ?? []}
+        onCreated={(id) => {
+          setSelectedWsId(id);
+          setCreateOpen(false);
+        }}
+      />
+    </>
   );
 }
 
-function NewThreadInWorkspace({
-  workspaceId,
-  className,
+function WorkspacePanel({
+  ws,
+  threads,
+  pathname,
 }: {
-  workspaceId: string;
-  className?: string;
+  ws: Doc<"workspaces">;
+  threads: Doc<"threads">[];
+  pathname: string | null;
 }) {
   const create = useMutation(api.threads.create);
   const router = useRouter();
   const [busy, setBusy] = useState(false);
-  const isMobile = useIsMobile();
+  const [propsOpen, setPropsOpen] = useState(false);
+  const threadListRef = useRef<HTMLDivElement>(null);
+  const [canScrollDown, setCanScrollDown] = useState(false);
+
+  const checkScroll = () => {
+    const el = threadListRef.current;
+    if (!el) return;
+    setCanScrollDown(el.scrollTop + el.clientHeight < el.scrollHeight - 4);
+  };
+
+  useEffect(() => {
+    checkScroll();
+  }, [threads]);
 
   const start = async () => {
     if (busy) return;
     setBusy(true);
     try {
       const id = await create({
-        workspaceId: workspaceId as Id<"workspaces">,
+        workspaceId: ws._id as Id<"workspaces">,
         agent: "claude",
         mode: defaultModeFor("claude"),
         title: "Claude Code session",
@@ -354,33 +285,204 @@ function NewThreadInWorkspace({
     }
   };
 
+  const displayPath = ws.path?.replace(/^\/Users\/[^/]+/, "~") ?? ws.path ?? "";
+
   return (
-    <Button
-      type="button"
-      variant="ghost"
-      size={isMobile ? "icon-sm" : "icon-xs"}
-      aria-label="New Claude Code thread"
-      disabled={busy}
-      onClick={start}
-      className={cn(
-        isMobile
-          ? "opacity-100"
-          : "opacity-0 group-hover/ws:opacity-100 focus-visible:opacity-100",
-        className,
-      )}
-    >
-      <Plus size={ICON_SIZES.md} strokeWidth={1.5} />
-    </Button>
+    <>
+      <div className="flex min-h-0 flex-1 flex-col">
+        {/* Workspace header */}
+        <div className="flex items-start justify-between px-3 pb-2 pt-3">
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-xs font-medium leading-tight text-foreground">
+              {ws.name}
+            </p>
+            <p className="truncate text-[10px] text-muted-foreground">{displayPath}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setPropsOpen(true)}
+            className="ml-1.5 shrink-0 rounded p-0.5 text-muted-foreground/50 transition-colors hover:text-muted-foreground"
+          >
+            <MoreHorizontal size={13} strokeWidth={1.5} />
+          </button>
+        </div>
+
+        {/* New session button */}
+        <div className="px-2.5 pb-2">
+          <button
+            type="button"
+            onClick={start}
+            disabled={busy}
+            className="flex w-full items-center justify-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-40"
+          >
+            <Pencil size={11} strokeWidth={1.5} />
+            New session
+          </button>
+        </div>
+
+        {/* Thread list — scrollable with bottom blur */}
+        <div className="relative min-h-0 flex-1">
+          <div
+            ref={threadListRef}
+            onScroll={checkScroll}
+            className="h-full overflow-y-auto px-1.5 pb-2"
+          >
+            {threads.map((t) => {
+              const isActive = pathname === `/threads/${t._id}`;
+              return (
+                <Link
+                  key={t._id}
+                  href={`/threads/${t._id}`}
+                  className={cn(
+                    "block truncate rounded-md px-2 py-1.5 text-xs transition-colors",
+                    isActive
+                      ? "bg-muted text-foreground"
+                      : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
+                  )}
+                >
+                  {t.title}
+                </Link>
+              );
+            })}
+            {threads.length === 0 && (
+              <p className="px-2 py-1.5 text-[10px] text-muted-foreground/60">No sessions yet.</p>
+            )}
+          </div>
+
+          {/* Scroll blur overlay */}
+          {canScrollDown && (
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-linear-to-t from-background to-transparent" />
+          )}
+        </div>
+      </div>
+
+      {/* Workspace properties dialog */}
+      <Dialog open={propsOpen} onOpenChange={setPropsOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Workspace properties</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 pt-1">
+            <div>
+              <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                Name
+              </p>
+              <p className="text-xs">{ws.name}</p>
+            </div>
+            <div>
+              <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                Path
+              </p>
+              <p className="break-all font-mono text-xs">{ws.path}</p>
+            </div>
+            {/* editing disabled for now */}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
-function formatRelative(ts: number): string {
-  const diff = Date.now() - ts;
-  const m = Math.round(diff / 60_000);
-  if (m < 1) return "now";
-  if (m < 60) return `${m}m`;
-  const h = Math.round(m / 60);
-  if (h < 24) return `${h}h`;
-  const d = Math.round(h / 24);
-  return `${d}d`;
+function CreateWorkspaceDialog({
+  open,
+  onClose,
+  devices,
+  onCreated,
+}: {
+  open: boolean;
+  onClose: () => void;
+  devices: Doc<"devices">[];
+  onCreated: (id: string) => void;
+}) {
+  const create = useMutation(api.workspaces.create);
+  const [name, setName] = useState("");
+  const [path, setPath] = useState("");
+  const [deviceId, setDeviceId] = useState<string>("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (devices.length > 0 && !deviceId) {
+      setDeviceId(devices[0]!._id);
+    }
+  }, [devices, deviceId]);
+
+  const canSubmit = name.trim().length > 0 && path.trim().length > 0 && deviceId;
+
+  const submit = async () => {
+    if (!canSubmit || busy) return;
+    setBusy(true);
+    try {
+      const id = await create({
+        deviceId: deviceId as Id<"devices">,
+        name: name.trim(),
+        path: path.trim(),
+      });
+      setName("");
+      setPath("");
+      onCreated(id);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Create workspace</DialogTitle>
+        </DialogHeader>
+        <div className="flex flex-col gap-3.5 pt-1">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              Name
+            </label>
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="my-project"
+              className="h-8 text-xs"
+              autoFocus
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              Path
+            </label>
+            <Input
+              value={path}
+              onChange={(e) => setPath(e.target.value)}
+              placeholder="/Users/you/projects/my-project"
+              className="h-8 font-mono text-xs"
+            />
+          </div>
+          {devices.length > 1 && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                Device
+              </label>
+              <select
+                value={deviceId}
+                onChange={(e) => setDeviceId(e.target.value)}
+                className="h-8 rounded-md border border-border bg-background px-2.5 text-xs text-foreground"
+              >
+                {devices.map((d) => (
+                  <option key={d._id} value={d._id}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          <div className="flex justify-end gap-2 pt-1">
+            <Button variant="ghost" size="sm" onClick={onClose} disabled={busy}>
+              Cancel
+            </Button>
+            <Button size="sm" onClick={submit} disabled={!canSubmit || busy}>
+              Create
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 }
