@@ -59,7 +59,7 @@ export function AppSidebar() {
                 className="size-5 object-contain"
               />
             </div>
-            <span className="font-display text-sm font-medium tracking-tight">
+            <span className="font-display text-sm font-medium tracking-tight group-data-[collapsible=icon]:hidden">
               coco
             </span>
           </Link>
@@ -89,7 +89,7 @@ export function AppSidebar() {
               render={<Link href="/devices" />}
             >
               <HardDrive size={ICON_SIZES.md} strokeWidth={1.5} />
-              <span>Devices</span>
+              <span className="group-data-[collapsible=icon]:hidden">Devices</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
@@ -138,7 +138,7 @@ function ThreadsSection() {
   return (
     <SidebarGroup>
       <SidebarGroupContent className="flex flex-col gap-2">
-        <div className="relative w-full">
+        <div className="relative w-full group-data-[collapsible=icon]:hidden">
           <Search
             size={isMobile ? ICON_SIZES.md : ICON_SIZES.sm}
             strokeWidth={1.5}
@@ -165,7 +165,7 @@ function ThreadsSection() {
 
         {groups && groups.length === 0 && (
           <p className={cn(
-            "px-2 py-1 text-muted-foreground",
+            "px-2 py-1 text-muted-foreground group-data-[collapsible=icon]:hidden",
             isMobile ? "text-sm" : "text-xs",
           )}>
             No threads yet.
@@ -203,7 +203,7 @@ function ThreadGroup({
   return (
     <div className="flex flex-col">
       <div className={cn(
-        "flex items-center gap-2 px-2",
+        "flex items-center gap-2 px-2 group-data-[collapsible=icon]:hidden",
         isMobile ? "h-11 py-1.5" : "py-1",
       )}>
         <button
@@ -222,7 +222,7 @@ function ThreadGroup({
           <span className="truncate">{title}</span>
         </button>
         <span className={cn(
-          "text-muted-foreground",
+          "text-muted-foreground group-data-[collapsible=icon]:hidden",
           isMobile ? "text-xs" : "text-[10px]",
         )}>{items.length}</span>
         {workspaceId && (
@@ -267,11 +267,11 @@ function ThreadGroup({
                     />
                   )}
                   <span className={cn(
-                    "flex-1 truncate",
+                    "flex-1 truncate group-data-[collapsible=icon]:hidden",
                     isMobile ? "text-sm" : "text-xs",
                   )}>{t.title}</span>
                   <span className={cn(
-                    "shrink-0 text-muted-foreground",
+                    "shrink-0 text-muted-foreground group-data-[collapsible=icon]:hidden",
                     isMobile ? "text-xs" : "text-[10px]",
                   )}>
                     {formatRelative(t._creationTime)}
@@ -284,7 +284,7 @@ function ThreadGroup({
       )}
       {open && items.length === 0 && (
         <div className={cn(
-          "px-2 py-1 text-muted-foreground",
+          "px-2 py-1 text-muted-foreground group-data-[collapsible=icon]:hidden",
           isMobile ? "text-xs" : "text-[10px]",
         )}>
           No threads yet.
@@ -306,7 +306,7 @@ function FooterUserBar() {
     )}>
       <UserButton appearance={{ elements: { avatarBox: cn(isMobile ? "size-8" : "size-7") } }} />
       <span className={cn(
-        "flex-1 text-muted-foreground",
+        "flex-1 text-muted-foreground group-data-[collapsible=icon]:hidden",
         isMobile ? "text-sm" : "text-xs",
       )}>Account</span>
       <Button
