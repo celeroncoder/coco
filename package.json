@@ -14,5 +14,10 @@
   "devDependencies": {
     "turbo": "^2.5.8",
     "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "@pierre/trees": "^1.0.0-beta.3",
+    "@types/three": "^0.184.0",
+    "three": "^0.184.0"
   }
 }

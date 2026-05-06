@@ -277,3 +277,45 @@ export function parseReadArgs(args: string): ParsedCodeArgs {
 }
 
 export { stripReadLineNumbers };
+
+/* ---------- Grep / Glob helpers ---------- */
+
+const GREP_NAMES = new Set(["grep", "rg", "ripgrep", "search", "find"]);
+const GLOB_NAMES = new Set(["glob", "find", "ls", "list"]);
+
+export function isGrepTool(name: string): boolean {
+  const key = normalize(name);
+  if (GREP_NAMES.has(key)) return true;
+  // Avoid matching "find" when it's actually a glob
+  for (const n of ["grep", "rg", "ripgrep"]) {
+    if (key.includes(n)) return true;
+  }
+  return false;
+}
+
+export function isGlobTool(name: string): boolean {
+  const key = normalize(name);
+  return GLOB_NAMES.has(key) || key.includes("glob");
+}
+
+export function parseGlobResult(result: string): string[] {
+  if (!result) return [];
+  return result
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0 && !l.startsWith("#") && !l.startsWith("//"));
+}
+
+export function parseGrepResult(result: string): {
+  code: string;
+  matchCount: number;
+} | null {
+  if (!result) return null;
+  const lines = result.split("\n");
+  // Count lines that look like grep matches (file:line:content)
+  let matchCount = 0;
+  for (const line of lines) {
+    if (/^[^\s:]+:\d+:/.test(line)) matchCount++;
+  }
+  return { code: result, matchCount };
+}

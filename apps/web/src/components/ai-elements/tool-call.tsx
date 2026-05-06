@@ -6,13 +6,19 @@ import { cn } from "~/lib/utils";
 import { BashTerminal, isBashTool, parseBashArgs } from "./bash-terminal";
 import {
   CodeView,
+  isGrepTool,
+  isGlobTool,
   isReadTool,
   isWriteTool,
+  parseGlobResult,
+  parseGrepResult,
   parseReadArgs,
   parseWriteArgs,
   stripReadLineNumbers,
 } from "./code-view";
 import { EditDiff, parseEditArgs } from "./edit-diff";
+import { GlobTreeView } from "./glob-tree-view";
+import { GrepCodeView } from "./grep-code-view";
 
 export type ToolCallProps = {
   name: string;
@@ -98,6 +104,20 @@ export function ToolCall({
                 );
               }
             }
+            if (isGlobTool(name) && result) {
+              const paths = parseGlobResult(result);
+              if (paths.length > 0) return <GlobTreeView paths={paths} />;
+            }
+            if (isGrepTool(name) && result) {
+              const parsed = parseGrepResult(result);
+              if (parsed)
+                return (
+                  <GrepCodeView
+                    code={parsed.code}
+                    matchCount={parsed.matchCount}
+                  />
+                );
+            }
             const parsed = parseEditArgs(args);
             if (parsed) {
               if ("truncated" in parsed) {
@@ -126,6 +146,8 @@ export function ToolCall({
             !isBashTool(name) &&
             !isWriteTool(name) &&
             !isReadTool(name) &&
+            !isGlobTool(name) &&
+            !isGrepTool(name) &&
             !parseEditArgs(args ?? "") && (
               <pre className="overflow-x-auto whitespace-pre-wrap break-all font-mono text-label-2xs text-muted-foreground/70">
                 {result}

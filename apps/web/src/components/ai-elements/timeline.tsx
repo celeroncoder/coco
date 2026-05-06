@@ -26,13 +26,19 @@ import { cn } from "~/lib/utils";
 import { BashTerminal, isBashTool, parseBashArgs } from "./bash-terminal";
 import {
   CodeView,
+  isGrepTool,
+  isGlobTool,
   isReadTool,
   isWriteTool,
+  parseGlobResult,
+  parseGrepResult,
   parseReadArgs,
   parseWriteArgs,
   stripReadLineNumbers,
 } from "./code-view";
 import { EditDiff, parseEditArgs } from "./edit-diff";
+import { GlobTreeView } from "./glob-tree-view";
+import { GrepCodeView } from "./grep-code-view";
 
 export type TimelineStatus =
   | "error"
@@ -634,6 +640,21 @@ function ToolCallRow({ call, isFirst, isLast, now }: ToolCallRowProps) {
                       );
                     }
                   }
+                  if (isGlobTool(call.name) && call.result) {
+                    const paths = parseGlobResult(call.result);
+                    if (paths.length > 0)
+                      return <GlobTreeView paths={paths} />;
+                  }
+                  if (isGrepTool(call.name) && call.result) {
+                    const parsed = parseGrepResult(call.result);
+                    if (parsed)
+                      return (
+                        <GrepCodeView
+                          code={parsed.code}
+                          matchCount={parsed.matchCount}
+                        />
+                      );
+                  }
                   const parsed = parseEditArgs(call.args);
                   if (parsed) {
                     if ("truncated" in parsed) {
@@ -662,6 +683,8 @@ function ToolCallRow({ call, isFirst, isLast, now }: ToolCallRowProps) {
                   !isBashTool(call.name) &&
                   !isWriteTool(call.name) &&
                   !isReadTool(call.name) &&
+                  !isGlobTool(call.name) &&
+                  !isGrepTool(call.name) &&
                   !parseEditArgs(call.args ?? "") && (
                     <pre className="overflow-x-auto whitespace-pre-wrap break-all font-mono text-label-2xs text-muted-foreground/70">
                       {call.result}
