@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireDevice } from "./helpers";
+import { requireDevice, requireUser } from "./helpers";
 
 export const pending = query({
   args: { deviceId: v.id("devices"), token: v.string() },
@@ -106,6 +106,41 @@ export const appendEvent = mutation({
   },
 });
 
+export const cancelRun = mutation({
+  args: { threadId: v.id("threads") },
+  handler: async (ctx, { threadId }) => {
+    const userId = await requireUser(ctx);
+    const thread = await ctx.db.get(threadId);
+    if (!thread || thread.userId !== userId) throw new Error("Thread not found");
+    const activeRun = await ctx.db
+      .query("runs")
+      .withIndex("by_thread", (q) => q.eq("threadId", threadId))
+      .order("desc")
+      .filter((q) =>
+        q.or(q.eq(q.field("status"), "queued"), q.eq(q.field("status"), "running")),
+      )
+      .first();
+    if (!activeRun) return { cancelled: false };
+    await ctx.db.patch(activeRun._id, {
+      status: "error",
+      error: "Cancelled by user",
+    });
+    return { cancelled: true };
+  },
+});
+
+export const isCancelled = query({
+  args: { deviceId: v.id("devices"), token: v.string(), runId: v.id("runs") },
+  handler: async (ctx, { deviceId, token, runId }) => {
+    await requireDevice(ctx, deviceId, token);
+    const run = await ctx.db.get(runId);
+    if (!run || run.deviceId !== deviceId) return { cancelled: false };
+    return {
+      cancelled: run.status === "error" && run.error === "Cancelled by user",
+    };
+  },
+});
+
 export const finish = mutation({
   args: {
     deviceId: v.id("devices"),
@@ -113,11 +148,22 @@ export const finish = mutation({
     runId: v.id("runs"),
     status: v.union(v.literal("done"), v.literal("error")),
     error: v.optional(v.string()),
+    planPath: v.optional(v.string()),
+    planContent: v.optional(v.string()),
   },
-  handler: async (ctx, { deviceId, token, runId, status, error }) => {
+  handler: async (ctx, { deviceId, token, runId, status, error, planPath, planContent }) => {
     await requireDevice(ctx, deviceId, token);
     const run = await ctx.db.get(runId);
     if (!run || run.deviceId !== deviceId) throw new Error("Run not found");
     await ctx.db.patch(runId, { status, error });
+
+    if (status === "done" && planPath && planContent) {
+      await ctx.db.insert("plans", {
+        threadId: run.threadId,
+        runId,
+        filePath: planPath,
+        content: planContent,
+      });
+    }
   },
 });

@@ -9,6 +9,8 @@ export async function POST(req: Request) {
     runId: string;
     status: "done" | "error";
     error?: string;
+    planPath?: string;
+    planContent?: string;
   };
   try {
     await daemonConvex().mutation(api.runs.finish, {
@@ -17,6 +19,8 @@ export async function POST(req: Request) {
       runId: body.runId as Id<"runs">,
       status: body.status,
       error: body.error,
+      planPath: body.planPath,
+      planContent: body.planContent,
     });
     return Response.json({ ok: true });
   } catch (err) {

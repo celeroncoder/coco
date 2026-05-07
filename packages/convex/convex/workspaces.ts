@@ -2,6 +2,16 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireDevice, requireUser } from "./helpers";
 
+export const getById = query({
+  args: { workspaceId: v.id("workspaces") },
+  handler: async (ctx, { workspaceId }) => {
+    const userId = await requireUser(ctx);
+    const ws = await ctx.db.get(workspaceId);
+    if (!ws || ws.userId !== userId) return null;
+    return ws;
+  },
+});
+
 export const list = query({
   args: { deviceId: v.optional(v.id("devices")) },
   handler: async (ctx, { deviceId }) => {

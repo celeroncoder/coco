@@ -8,31 +8,25 @@ import {
   type ToolCallEvent,
 } from "~/components/ai-elements/timeline";
 import { Button } from "~/components/ui/button";
+import { DotmSquare1 } from "~/components/ui/dotm-square-1";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { PermissionRequest, RunEvent, RunInfo } from "./types";
+import type { RunEvent, RunInfo } from "./types";
 
 export function MessageBubble({
   role,
   text,
   run,
-  opencodeEvents,
-  permissionRequests,
-  onPermissionAction,
-  pendingPermissions,
+  planContent,
+  onExpandPlan,
 }: {
   role: "user" | "assistant" | "system";
   text: string;
   run?: RunInfo;
-  opencodeEvents?: RunEvent[];
-  permissionRequests?: PermissionRequest[];
-  onPermissionAction?: (
-    permissionId: string,
-    response: "once" | "always" | "reject",
-  ) => void;
-  pendingPermissions?: Record<string, "pending" | "approved" | "rejected">;
+  planContent?: string;
+  onExpandPlan?: () => void;
 }) {
   const isUser = role === "user";
-  const blocks = useAssistantBlocks(opencodeEvents ?? run?.events ?? []);
+  const blocks = useAssistantBlocks(run?.events ?? []);
   const [copied, setCopied] = useState(false);
 
   const handleCopy = useCallback(async () => {
@@ -71,13 +65,13 @@ export function MessageBubble({
   }
 
   const hasContent = text.length > 0 || blocks.length > 0;
-  const isStreaming = run?.status === "running" || (opencodeEvents?.length ?? 0) > 0;
+  const isStreaming = run?.status === "running";
   const hasError = run?.status === "error";
 
   return (
     <div className="group/msg flex w-full min-w-0 flex-col gap-2">
       {/* queued */}
-      {!hasContent && run?.status === "queued" && !opencodeEvents && (
+      {!hasContent && run?.status === "queued" && (
         <ShimmerLoader label="Waiting for daemon..." />
       )}
 
@@ -91,7 +85,7 @@ export function MessageBubble({
         const flushTools = (key: string) => {
           if (toolBatch.length === 0) return;
           nodes.push(
-            <ToolCallTimeline key={`tl-${key}`} calls={toolBatch} />,
+            <ToolCallTimeline key={`tl-${key}`} calls={toolBatch} planContent={planContent} onExpandPlan={onExpandPlan} />,
           );
           toolBatch = [];
         };
@@ -169,55 +163,6 @@ export function MessageBubble({
         </div>
       )}
 
-      {/* permission requests */}
-      {permissionRequests && permissionRequests.length > 0 && (
-        <div className="flex flex-col gap-2 rounded-lg border border-border bg-background p-3">
-          {permissionRequests.map((p) => (
-            <div key={p.permissionId} className="flex flex-col gap-2">
-              <div className="text-label-sm font-medium text-foreground">
-                {p.title}
-              </div>
-              {p.description && (
-                <div className="text-label-xs text-muted-foreground">
-                  {p.description}
-                </div>
-              )}
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  size="xs"
-                  onClick={() => onPermissionAction?.(p.permissionId, "once")}
-                >
-                  Approve once
-                </Button>
-                <Button
-                  type="button"
-                  size="xs"
-                  variant="secondary"
-                  onClick={() => onPermissionAction?.(p.permissionId, "always")}
-                >
-                  Always approve
-                </Button>
-                <Button
-                  type="button"
-                  size="xs"
-                  variant="ghost"
-                  onClick={() => onPermissionAction?.(p.permissionId, "reject")}
-                >
-                  Reject
-                </Button>
-                {pendingPermissions?.[p.permissionId] && (
-                  <span className="text-label-2xs text-muted-foreground">
-                    {pendingPermissions[p.permissionId] === "approved"
-                      ? "Approved"
-                      : "Rejected"}
-                  </span>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -240,27 +185,20 @@ function ShimmerLoader({ label }: { label?: string }) {
     if (label) return;
     const id = setInterval(
       () => setPhraseIdx((i) => (i + 1) % SHIMMER_PHRASES.length),
-      2000,
+      2000 * 4,
     );
     return () => clearInterval(id);
   }, [label]);
 
   return (
     <div className="flex items-center gap-2">
-      {/* pixel pulse grid */}
-      <div className="grid grid-cols-3 gap-0.5">
-        {Array.from({ length: 9 }).map((_, i) => (
-          <span
-            key={i}
-            className="block size-1 rounded-sm bg-muted-foreground/70"
-            style={{
-              animation: `pulse 1.4s ease-in-out infinite`,
-              animationDelay: `${(i * 140) % 700}ms`,
-            }}
-          />
-        ))}
-      </div>
-      <span className="animate-pulse text-paragraph-xs italic text-muted-foreground/70">
+      <DotmSquare1
+        size={20}
+        dotSize={3}
+        animated
+        aria-label="Thinking"
+      />
+      <span className="animate-pulse text-paragraph-xs italic text-muted-foreground/70 capitalize">
         {label ?? SHIMMER_PHRASES[phraseIdx]}
       </span>
     </div>

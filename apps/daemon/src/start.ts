@@ -3,13 +3,17 @@ import { getRunner } from "./agents/index.ts";
 import type { AgentEvent } from "./agents/types.ts";
 import { CocoApi, type Auth, type PendingRun } from "./api.ts";
 import { readConfig } from "./config.ts";
-import { startOpencodeServer } from "./opencode-server.ts";
 import { readSkillContent, scanSkills } from "./skills.ts";
+import { spawn, type ChildProcess } from "node:child_process";
+import { readFile } from "node:fs/promises";
+import { homedir } from "node:os";
+import { resolve as pathResolve } from "node:path";
 
 const HEARTBEAT_MS = 30_000;
 const SKILLS_RESCAN_MS = 60_000;
 const AGENTS_RESCAN_MS = 5 * 60_000;
 const FLUSH_MS = 200;
+const LOCALTERM_PORT = 3417;
 
 export async function start() {
   const cfg = await readConfig();
@@ -26,8 +30,6 @@ export async function start() {
   console.log(`coco-agent connected via ${cfg.serverUrl}`);
   console.log(`device: ${cfg.deviceId}`);
 
-  const opencodeServer = startOpencodeServer();
-
   let stopping = false;
   const aborters = new Set<AbortController>();
 
@@ -37,6 +39,20 @@ export async function start() {
       ? `installed agents: ${installedAgents.join(", ")}`
       : "installed agents: (none detected — check that CLIs are on PATH)",
   );
+
+  let localtermProcess: ChildProcess | null = null;
+  if (installedAgents.includes("localterm")) {
+    try {
+      localtermProcess = spawn("localterm", ["start", "--port", String(LOCALTERM_PORT)], {
+        stdio: "ignore",
+        detached: true,
+      });
+      localtermProcess.unref();
+      console.log(`[localterm] started on port ${LOCALTERM_PORT}`);
+    } catch (err) {
+      console.warn("[localterm] failed to start:", err instanceof Error ? err.message : err);
+    }
+  }
   let heartbeatWarned = false;
   const tryHeartbeat = async () => {
     try {
@@ -61,6 +77,18 @@ export async function start() {
     if (next.join(",") !== installedAgents.join(",")) {
       installedAgents = next;
       console.log(`installed agents updated: ${installedAgents.join(", ")}`);
+      if (!localtermProcess && installedAgents.includes("localterm")) {
+        try {
+          localtermProcess = spawn("localterm", ["start", "--port", String(LOCALTERM_PORT)], {
+            stdio: "ignore",
+            detached: true,
+          });
+          localtermProcess.unref();
+          console.log(`[localterm] started on port ${LOCALTERM_PORT} (newly detected)`);
+        } catch (err) {
+          console.warn("[localterm] failed to start:", err instanceof Error ? err.message : err);
+        }
+      }
     }
   }, AGENTS_RESCAN_MS);
 
@@ -102,7 +130,12 @@ export async function start() {
     clearInterval(skillsTimer);
     clearInterval(agentsTimer);
     for (const ac of aborters) ac.abort();
-    opencodeServer?.stop();
+    if (localtermProcess) {
+      try {
+        spawn("localterm", ["stop"], { stdio: "ignore" });
+        console.log("[localterm] stopped");
+      } catch {}
+    }
     process.exit(0);
   };
   process.on("SIGINT", shutdown);
@@ -137,6 +170,18 @@ async function handleRun(
   const ac = new AbortController();
   aborters.add(ac);
 
+  let userCancelled = false;
+  const cancelPoll = setInterval(async () => {
+    if (ac.signal.aborted) return;
+    try {
+      const { cancelled } = await api.checkRunCancelled(auth, run._id);
+      if (cancelled) {
+        userCancelled = true;
+        ac.abort();
+      }
+    } catch {}
+  }, 2000);
+
   let buffer = "";
   let lastFlush = Date.now();
   const flushText = async () => {
@@ -146,6 +191,8 @@ async function handleRun(
     lastFlush = Date.now();
     await api.appendEvent(auth, run._id, { type: "text-delta", text });
   };
+
+  let lastWritePath: string | null = null;
 
   try {
     const runner = getRunner(run.agent);
@@ -169,20 +216,42 @@ async function handleRun(
         },
         shouldFlush: () => Date.now() - lastFlush >= FLUSH_MS,
       });
+
+      if (evt.type === "tool-call" && evt.text) {
+        const path = extractWritePath(evt.text);
+        if (path) lastWritePath = path;
+      }
     }
 
     await flushText();
-    await api.finishRun(auth, run._id, "done");
+
+    if (run.mode === "plan" && lastWritePath) {
+      try {
+        const planContent = await readFile(lastWritePath, "utf-8");
+        await api.finishRun(auth, run._id, "done", undefined, lastWritePath, planContent);
+      } catch (err) {
+        console.error(`[run ${run._id}] failed to read plan file at ${lastWritePath}:`, err);
+        await api.finishRun(auth, run._id, "done");
+      }
+    } else {
+      await api.finishRun(auth, run._id, "done");
+    }
     console.log(`\n[run ${run._id}] done`);
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error(`[run ${run._id}] error:`, message);
-    try {
-      await flushText();
-      await api.appendEvent(auth, run._id, { type: "error", text: message });
-      await api.finishRun(auth, run._id, "error", message);
-    } catch {}
+    if (userCancelled) {
+      console.log(`\n[run ${run._id}] cancelled by user`);
+      // DB already updated by cancelRun mutation — skip finishRun
+    } else {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`[run ${run._id}] error:`, message);
+      try {
+        await flushText();
+        await api.appendEvent(auth, run._id, { type: "error", text: message });
+        await api.finishRun(auth, run._id, "error", message);
+      } catch {}
+    }
   } finally {
+    clearInterval(cancelPoll);
     aborters.delete(ac);
   }
 }
@@ -210,6 +279,14 @@ async function emitEvent(
   await api.appendEvent(auth, runId, { type: evt.type, text: evt.text });
   if (evt.type === "tool-call") console.log(`\n[tool] ${evt.text}`);
   else if (evt.type === "error") console.error(`\n[error] ${evt.text}`);
+}
+
+function extractWritePath(toolCallText: string): string | null {
+  const m = toolCallText.match(/"file_path"\s*:\s*"([^"]+)"/);
+  const raw = m?.[1];
+  if (!raw) return null;
+  if (raw.startsWith("~")) return pathResolve(homedir(), raw.slice(raw[1] === "/" ? 2 : 1));
+  return raw;
 }
 
 async function buildSystemPrompt(

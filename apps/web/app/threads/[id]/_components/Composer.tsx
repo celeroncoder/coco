@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUp, ICON_SIZES } from "@/components/icons";
+import { ArrowUp, ICON_SIZES, Square } from "@/components/icons";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Button } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
@@ -21,6 +21,8 @@ export function Composer({
   onChange,
   onSubmit,
   submitting,
+  isRunning,
+  onStop,
   skills,
   mode,
   modes,
@@ -36,6 +38,8 @@ export function Composer({
   onChange: (v: string) => void;
   onSubmit: () => void;
   submitting: boolean;
+  isRunning?: boolean;
+  onStop?: () => void;
   skills: Skill[];
   mode: string;
   modes: { id: string; label: string }[];
@@ -229,15 +233,27 @@ export function Composer({
           onChange={onEffortChange}
           options={EFFORTS}
         />
-        <Button
-          type="submit"
-          size="icon-sm"
-          disabled={submitting || !value.trim()}
-          aria-label="Send"
-          className="ml-1 shrink-0"
-        >
-          <ArrowUp size={ICON_SIZES.sm} strokeWidth={1.5} />
-        </Button>
+        {isRunning && onStop ? (
+          <Button
+            type="button"
+            size="icon-sm"
+            onClick={onStop}
+            aria-label="Stop"
+            className="ml-1 shrink-0 bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            <Square size={ICON_SIZES.sm} strokeWidth={1.5} />
+          </Button>
+        ) : (
+          <Button
+            type="submit"
+            size="icon-sm"
+            disabled={submitting || !value.trim()}
+            aria-label="Send"
+            className="ml-1 shrink-0"
+          >
+            <ArrowUp size={ICON_SIZES.sm} strokeWidth={1.5} />
+          </Button>
+        )}
       </div>
     </form>
   );
