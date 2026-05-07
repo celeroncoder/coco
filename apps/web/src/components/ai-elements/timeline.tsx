@@ -21,7 +21,7 @@ import {
   Wrench,
   type LucideIcon,
 } from "@/components/icons";
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { cn } from "~/lib/utils";
 import { BashTerminal, isBashTool, parseBashArgs } from "./bash-terminal";
 import {
@@ -39,6 +39,7 @@ import {
 import { EditDiff, parseEditArgs } from "./edit-diff";
 import { GlobTreeView } from "./glob-tree-view";
 import { GrepCodeView } from "./grep-code-view";
+import { Response } from "./response";
 
 export type TimelineStatus =
   | "error"
@@ -418,6 +419,8 @@ export type ToolCallTimelineProps = {
   subtitle?: string;
   className?: string;
   now?: number;
+  planContent?: string;
+  onExpandPlan?: () => void;
 };
 
 const TOOL_ICONS: Record<string, LucideIcon> = {
@@ -463,6 +466,8 @@ export function ToolCallTimeline({
   subtitle,
   className,
   now = Date.now(),
+  planContent,
+  onExpandPlan,
 }: ToolCallTimelineProps) {
   return (
     <div className={cn("flex flex-col", className)}>
@@ -494,6 +499,8 @@ export function ToolCallTimeline({
             isFirst={i === 0}
             isLast={i === calls.length - 1}
             now={now}
+            planContent={planContent}
+            onExpandPlan={onExpandPlan}
           />
         ))}
       </motion.ol>
@@ -506,14 +513,87 @@ type ToolCallRowProps = {
   isFirst: boolean;
   isLast: boolean;
   now: number;
+  planContent?: string;
+  onExpandPlan?: () => void;
 };
 
-function ToolCallRow({ call, isFirst, isLast, now }: ToolCallRowProps) {
+function isClaudePlanFilePath(filePath: string): boolean {
+  return /(?:^|\/|\\)(?:\.claude)(?:\/|\\)plans(?:\/|\\)[^/\\]+\.md$/i.test(
+    filePath,
+  );
+}
+
+function InlinePlanWrite({
+  filePath,
+  content,
+  onExpandPlan,
+}: {
+  filePath: string;
+  content: string;
+  onExpandPlan?: () => void;
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollDown, setCanScrollDown] = useState(false);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const update = () => {
+      setCanScrollDown(el.scrollTop + el.clientHeight < el.scrollHeight - 2);
+    };
+    update();
+    el.addEventListener("scroll", update, { passive: true });
+    const resizeObserver = new ResizeObserver(update);
+    resizeObserver.observe(el);
+    return () => {
+      el.removeEventListener("scroll", update);
+      resizeObserver.disconnect();
+    };
+  }, [content]);
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="truncate font-mono text-label-2xs text-muted-foreground/70">
+        {filePath}
+      </div>
+      <div
+        ref={scrollRef}
+        className="relative max-h-60 overflow-y-auto rounded-md border border-border bg-muted p-3 pb-0"
+      >
+        <Response>{content}</Response>
+        {canScrollDown && (
+          <>
+            <div
+              aria-hidden
+              className="pointer-events-none sticky bottom-0 -mx-3 -mb-3 h-14 bg-linear-to-t from-muted via-muted/90 to-transparent"
+            />
+            {onExpandPlan && (
+              <button
+                type="button"
+                onClick={onExpandPlan}
+                className="sticky bottom-2 left-1/2 z-10 -translate-x-1/2 rounded-full border border-border bg-background px-3 py-1 text-label-2xs text-foreground shadow-sm transition-colors hover:bg-muted"
+              >
+                Expand plan
+              </button>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ToolCallRow({ call, isFirst, isLast, now, planContent, onExpandPlan }: ToolCallRowProps) {
   const [open, setOpen] = useState(false);
   const hasBody = Boolean(call.args || call.result);
   const Icon = iconForTool(call.name);
   const running = call.state === "running";
   const error = call.state === "error";
+  const writeArgs =
+    call.args && isWriteTool(call.name) ? parseWriteArgs(call.args) : null;
+  const isPlanWrite =
+    writeArgs?.kind === "write" && isClaudePlanFilePath(writeArgs.filePath);
+  const showBody = hasBody && (open || isPlanWrite);
   const iconColor = error
     ? "text-error-base"
     : running
@@ -558,11 +638,11 @@ function ToolCallRow({ call, isFirst, isLast, now }: ToolCallRowProps) {
       <div className={cn("min-w-0 flex-1", isLast ? "pb-0" : "pb-2")}>
         <button
           type="button"
-          onClick={() => hasBody && setOpen((v) => !v)}
-          disabled={!hasBody}
+          onClick={() => hasBody && !isPlanWrite && setOpen((v) => !v)}
+          disabled={!hasBody || isPlanWrite}
           className={cn(
             "group flex w-full items-baseline gap-2 bg-transparent p-0 text-left",
-            hasBody && "cursor-pointer",
+            hasBody && !isPlanWrite && "cursor-pointer",
           )}
         >
           <span
@@ -593,16 +673,21 @@ function ToolCallRow({ call, isFirst, isLast, now }: ToolCallRowProps) {
         </button>
 
         <AnimatePresence initial={false}>
-          {open && hasBody && (
+          {showBody && (
             <motion.div
               key="body"
               variants={collapseVariants}
-              initial="hidden"
+              initial={isPlanWrite ? false : "hidden"}
               animate="show"
-              exit="exit"
+              exit={isPlanWrite ? undefined : "exit"}
               className="overflow-hidden"
             >
-              <div className="mt-1 space-y-1 border-l border-border pl-2">
+              <div
+                className={cn(
+                  "mt-1 space-y-1",
+                  isPlanWrite ? "pl-0" : "border-l border-border pl-2",
+                )}
+              >
                 {call.args && isBashTool(call.name) && (() => {
                   const bash = parseBashArgs(call.args);
                   if (!bash) return null;
@@ -617,16 +702,24 @@ function ToolCallRow({ call, isFirst, isLast, now }: ToolCallRowProps) {
                 })()}
                 {call.args && !isBashTool(call.name) && (() => {
                   if (isWriteTool(call.name)) {
-                    const w = parseWriteArgs(call.args);
-                    if (w && w.kind === "write") {
+                    const w = writeArgs;
+                    if (!w || w.kind !== "write") return null;
+                    if (isClaudePlanFilePath(w.filePath)) {
                       return (
-                        <CodeView
+                        <InlinePlanWrite
                           filePath={w.filePath}
-                          code={w.content}
-                          isIncomplete={w.isIncomplete || running}
+                          content={planContent ?? w.content}
+                          onExpandPlan={onExpandPlan}
                         />
                       );
                     }
+                    return (
+                      <CodeView
+                        filePath={w.filePath}
+                        code={w.content}
+                        isIncomplete={w.isIncomplete || running}
+                      />
+                    );
                   }
                   if (isReadTool(call.name)) {
                     const r = parseReadArgs(call.args);
