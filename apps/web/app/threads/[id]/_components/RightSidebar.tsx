@@ -7,6 +7,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 import { X, ICON_SIZES } from "@/components/icons";
 import { Button } from "~/components/ui/button";
+import { ScrollArea } from "~/components/ui/scroll-area";
 import { Response } from "~/components/ai-elements/response";
 import { useRightSidebarRef } from "~/components/right-sidebar-context";
 
@@ -134,12 +135,14 @@ function PlanPanel({
 
   return (
     <>
-      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-3 [overflow-wrap:anywhere]">
-        <div className="mb-2 font-mono text-[10px] text-muted-foreground">
-          {plan.filePath}
+      <ScrollArea className="min-h-0 flex-1">
+        <div className="px-4 py-3 wrap-anywhere">
+          <div className="mb-2 font-mono text-[10px] text-muted-foreground">
+            {plan.filePath}
+          </div>
+          <Response>{plan.content}</Response>
         </div>
-        <Response>{plan.content}</Response>
-      </div>
+      </ScrollArea>
       <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border px-3 py-2">
         <Button onClick={onImplement} disabled={implementing}>
           {implementing ? "Implementing..." : "Implement Plan"}
