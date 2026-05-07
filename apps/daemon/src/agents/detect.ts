@@ -2,13 +2,7 @@ import { spawn } from "node:child_process";
 
 const AGENT_BINARIES: Record<string, string[]> = {
   claude: ["claude"],
-  codex: ["codex"],
-  copilot: ["copilot", "gh"],
-  gemini: ["gemini"],
-  cursor: ["cursor-agent", "cursor"],
-  opencode: ["opencode"],
-  droid: ["droid"],
-  pi: ["pi"],
+  localterm: ["localterm"],
 };
 
 const cache = new Map<string, boolean>();

@@ -78,23 +78,6 @@ export const updateMode = mutation({
   },
 });
 
-export const setOpenCodeSession = mutation({
-  args: {
-    threadId: v.id("threads"),
-    sessionId: v.string(),
-    serverUrl: v.string(),
-  },
-  handler: async (ctx, { threadId, sessionId, serverUrl }) => {
-    const userId = await requireUser(ctx);
-    const t = await ctx.db.get(threadId);
-    if (!t || t.userId !== userId) throw new Error("Not found");
-    await ctx.db.patch(threadId, {
-      opencodeSessionId: sessionId,
-      opencodeServerUrl: serverUrl,
-    });
-  },
-});
-
 export const updateModel = mutation({
   args: { threadId: v.id("threads"), model: v.string() },
   handler: async (ctx, { threadId, model }) => {

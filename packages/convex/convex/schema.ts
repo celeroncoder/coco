@@ -47,8 +47,6 @@ export default defineSchema({
     mode: v.optional(v.string()),
     model: v.optional(v.string()),
     title: v.string(),
-    opencodeSessionId: v.optional(v.string()),
-    opencodeServerUrl: v.optional(v.string()),
   })
     .index("by_user", ["userId"])
     .index("by_workspace", ["workspaceId"]),
@@ -87,4 +85,13 @@ export default defineSchema({
   })
     .index("by_thread", ["threadId"])
     .index("by_device_status", ["deviceId", "status"]),
+
+  plans: defineTable({
+    threadId: v.id("threads"),
+    runId: v.id("runs"),
+    filePath: v.optional(v.string()),
+    content: v.string(),
+    status: v.optional(v.string()),
+    title: v.optional(v.string()),
+  }).index("by_thread", ["threadId"]),
 });

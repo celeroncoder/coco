@@ -127,16 +127,29 @@ export class CocoApi {
     });
   }
 
+  checkRunCancelled(auth: Auth, runId: string) {
+    return this.request<{ cancelled: boolean }>(
+      `/api/daemon/runs/${runId}/cancelled`,
+      { auth },
+    );
+  }
+
   finishRun(
     auth: Auth,
     runId: string,
     status: "done" | "error",
     error?: string,
+    planPath?: string,
+    planContent?: string,
   ) {
+    const body: Record<string, unknown> = { runId, status };
+    if (error != null) body.error = error;
+    if (planPath != null) body.planPath = planPath;
+    if (planContent != null) body.planContent = planContent;
     return this.request<{ ok: true }>("/api/daemon/runs/finish", {
       method: "POST",
       auth,
-      body: JSON.stringify({ runId, status, error }),
+      body: JSON.stringify(body),
     });
   }
 }
