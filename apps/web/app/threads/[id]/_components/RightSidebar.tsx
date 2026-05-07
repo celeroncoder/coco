@@ -56,7 +56,7 @@ export function RightSidebar({
   const target = portalRef.current ?? document.body;
 
   return createPortal(
-    <div className="flex h-full w-[540px] max-w-full flex-col overflow-hidden bg-background">
+    <div className="flex h-full w-lg max-w-full flex-col overflow-hidden bg-background">
       {/* header with tabs */}
       <div className="flex h-10 shrink-0 items-center border-b border-border">
         <div className="flex h-full flex-1 items-center">
