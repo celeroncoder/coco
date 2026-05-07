@@ -4,16 +4,21 @@ import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
 import { codeToHtml } from "shiki/bundle/web";
 import { cn } from "~/lib/utils";
+import { Search } from "@/components/icons";
 
 type GrepCodeViewProps = {
   code: string;
   matchCount?: number;
+  pattern?: string;
+  path?: string;
   className?: string;
 };
 
 export function GrepCodeView({
   code,
   matchCount,
+  pattern,
+  path,
   className,
 }: GrepCodeViewProps) {
   const { resolvedTheme } = useTheme();
@@ -44,26 +49,49 @@ export function GrepCodeView({
   );
 
   return (
-    <div className={cn("mt-1 flex flex-col gap-1", className)}>
-      <div className="flex items-center gap-1.5 font-mono text-label-2xs text-muted-foreground">
-        <span>
-          {matchCount != null
-            ? `${matchCount} ${matchCount === 1 ? "match" : "matches"}`
-            : "grep results"}
-        </span>
-      </div>
-      <div className="overflow-hidden rounded-md border border-border">
-        {html ? (
-          <div
-            className={baseClass}
-            dangerouslySetInnerHTML={{ __html: html }}
-          />
-        ) : (
-          <pre className={cn(baseClass, "whitespace-pre text-muted-foreground p-2")}>
-            {code}
-          </pre>
+    <div className={cn("flex w-full max-w-full flex-col gap-1.5", className)}>
+      <div className="overflow-hidden rounded-md border border-border bg-muted/40">
+        <div className="flex items-baseline gap-2 border-b border-border px-3 py-2 font-mono text-label-2xs leading-5">
+          <span aria-hidden className="select-none shrink-0 text-muted-foreground">
+            <Search size={12} />
+          </span>
+          <code className="flex-1 whitespace-pre-wrap break-all text-foreground">
+            {pattern ?? "grep"}
+          </code>
+          <span className="shrink-0 text-muted-foreground/50">
+            {matchCount != null
+              ? `${matchCount} ${matchCount === 1 ? "match" : "matches"}`
+              : ""}
+          </span>
+        </div>
+        {code && (
+          <div className="overflow-hidden">
+            {html ? (
+              <div
+                className={cn(
+                  baseClass,
+                  "px-3 py-2",
+                )}
+                dangerouslySetInnerHTML={{ __html: html }}
+              />
+            ) : (
+              <pre
+                className={cn(
+                  baseClass,
+                  "px-3 py-2 whitespace-pre-wrap break-all text-muted-foreground",
+                )}
+              >
+                {code}
+              </pre>
+            )}
+          </div>
         )}
       </div>
+      {path && (
+        <span className="px-1 font-mono text-label-2xs text-muted-foreground/70">
+          in {path}
+        </span>
+      )}
     </div>
   );
 }

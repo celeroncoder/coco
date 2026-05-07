@@ -306,16 +306,58 @@ export function parseGlobResult(result: string): string[] {
     .filter((l) => l.length > 0 && !l.startsWith("#") && !l.startsWith("//"));
 }
 
+export function parseGrepArgs(args: string): { pattern: string; path?: string } | null {
+  try {
+    const parsed = JSON.parse(args);
+    if (typeof parsed === "object" && parsed !== null) {
+      return {
+        pattern:
+          typeof parsed.pattern === "string"
+            ? parsed.pattern
+            : typeof parsed.pattern === "object"
+              ? JSON.stringify(parsed.pattern)
+              : "",
+        path:
+          typeof parsed.path === "string"
+            ? parsed.path
+            : typeof parsed.file_path === "string"
+              ? parsed.file_path
+              : undefined,
+      };
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
 export function parseGrepResult(result: string): {
   code: string;
   matchCount: number;
 } | null {
   if (!result) return null;
   const lines = result.split("\n");
-  // Count lines that look like grep matches (file:line:content)
+  // Omit the first line (usually a header/command echo from the tool)
+  const contentLines = lines.slice(1);
   let matchCount = 0;
-  for (const line of lines) {
-    if (/^[^\s:]+:\d+:/.test(line)) matchCount++;
+  for (let i = 0; i < contentLines.length; i++) {
+    const trimmed = contentLines[i]!.trim();
+    if (!trimmed) continue;
+    const nextLine =
+      i + 1 < contentLines.length ? contentLines[i + 1]!.trim() : "";
+    const isFileHeader = /^\S+$/.test(trimmed) && /^\d+:/.test(nextLine);
+    if (!isFileHeader) matchCount++;
   }
-  return { code: result, matchCount };
+  return { code: contentLines.join("\n"), matchCount };
+}
+
+export function getDirectoryPaths(paths: string[]): string[] {
+  const dirs = new Set<string>();
+  for (const p of paths) {
+    const parts = p.split("/");
+    for (let i = 1; i < parts.length; i++) {
+      dirs.add(parts.slice(0, i).join("/"));
+    }
+  }
+  return Array.from(dirs);
 }

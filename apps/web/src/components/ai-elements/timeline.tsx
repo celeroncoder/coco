@@ -19,6 +19,7 @@ import {
   Search,
   Terminal,
   Wrench,
+  Expand,
   type LucideIcon,
 } from "@/components/icons";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -31,6 +32,7 @@ import {
   isReadTool,
   isWriteTool,
   parseGlobResult,
+  parseGrepArgs,
   parseGrepResult,
   parseReadArgs,
   parseWriteArgs,
@@ -40,6 +42,7 @@ import { EditDiff, parseEditArgs } from "./edit-diff";
 import { GlobTreeView } from "./glob-tree-view";
 import { GrepCodeView } from "./grep-code-view";
 import { Response } from "./response";
+import { Button } from "../ui/button";
 
 export type TimelineStatus =
   | "error"
@@ -553,28 +556,30 @@ function InlinePlanWrite({
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="truncate font-mono text-label-2xs text-muted-foreground/70">
+      {/* <div className="truncate font-mono text-label-2xs text-muted-foreground/70">
         {filePath}
-      </div>
+      </div> */}
       <div
         ref={scrollRef}
-        className="relative max-h-60 overflow-y-auto rounded-md border border-border bg-muted p-3 pb-0"
+        className="relative max-h-60 overflow-y-auto rounded-md border border-border bg-muted p-3"
       >
-        <Response>{content}</Response>
+        <Response className="mb-5">{content}</Response>
         {canScrollDown && (
           <>
             <div
               aria-hidden
-              className="pointer-events-none sticky bottom-0 -mx-3 -mb-3 h-14 bg-linear-to-t from-muted via-muted/90 to-transparent"
+              className="pointer-events-none sticky -bottom-3 -mx-3 -mb-3 h-14 bg-linear-to-t from-muted via-muted/90 to-transparent"
             />
             {onExpandPlan && (
-              <button
+              <Button
+              variant={"secondary"}
+              size="icon"
                 type="button"
                 onClick={onExpandPlan}
-                className="sticky bottom-2 left-1/2 z-10 -translate-x-1/2 rounded-full border border-border bg-background px-3 py-1 text-label-2xs text-foreground shadow-sm transition-colors hover:bg-muted"
+                className="sticky bottom-2 left-1/2 z-10 -translate-x-1/2 px-2 py-1 gap-1 flex bg-sidebar w-fit"
               >
-                Expand plan
-              </button>
+                 <Expand /> Expand
+              </Button>
             )}
           </>
         )}
@@ -740,11 +745,14 @@ function ToolCallRow({ call, isFirst, isLast, now, planContent, onExpandPlan }: 
                   }
                   if (isGrepTool(call.name) && call.result) {
                     const parsed = parseGrepResult(call.result);
+                    const grepArgs = parseGrepArgs(call.args ?? "");
                     if (parsed)
                       return (
                         <GrepCodeView
                           code={parsed.code}
                           matchCount={parsed.matchCount}
+                          pattern={grepArgs?.pattern}
+                          path={grepArgs?.path}
                         />
                       );
                   }

@@ -1,14 +1,133 @@
 "use client";
 
-import { memo } from "react";
-import { Streamdown } from "streamdown";
+import { memo, useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+import { Streamdown, defaultTranslations, type LinkSafetyModalProps } from "streamdown";
 import { cn } from "~/lib/utils";
+import { Check, Copy, Globe, X, ICON_SIZES } from "@/components/icons";
+
+function LinkSafetyModal({ url, isOpen, onClose, onConfirm }: LinkSafetyModalProps) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // ignore
+    }
+  }, [url]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [isOpen, onClose]);
+
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = "";
+      };
+    }
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-background/50 backdrop-blur-sm"
+      data-streamdown="link-safety-modal"
+      onClick={onClose}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") onClose();
+      }}
+      role="button"
+      tabIndex={0}
+    >
+      <div
+        className="relative mx-4 flex w-full max-w-md flex-col gap-4 rounded-xl border bg-background p-6 shadow-lg"
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
+        role="presentation"
+      >
+        <button
+          className="absolute top-4 right-4 rounded-md p-1 text-muted-foreground transition-all hover:bg-muted hover:text-foreground"
+          onClick={onClose}
+          title={defaultTranslations.close}
+          type="button"
+        >
+          <X size={16} />
+        </button>
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2 font-semibold text-lg">
+            <Globe size={20} />
+            <span>{defaultTranslations.openExternalLink}</span>
+          </div>
+          <p className="text-muted-foreground text-sm">
+            {defaultTranslations.externalLinkWarning}
+          </p>
+        </div>
+        <div
+          className={cn(
+            "break-all rounded-md bg-muted p-3 font-mono text-sm",
+            url.length > 100 && "max-h-32 overflow-y-auto",
+          )}
+        >
+          {url}
+        </div>
+        <div className="flex gap-2">
+          <button
+            className="flex flex-1 items-center justify-center gap-2 rounded-md border bg-background px-4 py-2 font-medium text-sm transition-all hover:bg-muted"
+            onClick={handleCopy}
+            type="button"
+          >
+            {copied ? (
+              <>
+                <Check size={ICON_SIZES.sm} />
+                <span>{defaultTranslations.copied}</span>
+              </>
+            ) : (
+              <>
+                <Copy size={ICON_SIZES.sm} />
+                <span>{defaultTranslations.copyLink}</span>
+              </>
+            )}
+          </button>
+          <button
+            className="flex flex-1 items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 font-medium text-primary-foreground text-sm transition-all hover:bg-primary/90"
+            onClick={() => {
+              onConfirm();
+              onClose();
+            }}
+            type="button"
+          >
+            <Globe size={ICON_SIZES.sm} />
+            <span>{defaultTranslations.openLink}</span>
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+const linkSafetyConfig = {
+  enabled: true,
+  renderModal: (props: LinkSafetyModalProps) => <LinkSafetyModal {...props} />,
+};
 
 export type ResponseProps = React.ComponentProps<typeof Streamdown>;
 
 export const Response = memo(
   ({ className, ...props }: ResponseProps) => (
     <Streamdown
+      linkSafety={linkSafetyConfig}
       className={cn(
         "streamdown-response w-full max-w-none text-paragraph-sm leading-relaxed text-foreground",
         // tighten default prose-y spacing

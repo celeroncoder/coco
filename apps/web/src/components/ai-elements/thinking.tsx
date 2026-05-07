@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { cn } from "~/lib/utils";
+import { DotmSquare1 } from "~/components/ui/dotm-square-1";
 import { Response } from "./response";
 
 export function Thinking({
@@ -24,16 +25,20 @@ export function Thinking({
         className,
       )}
     >
-      {/* <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-fit items-center gap-1.5 self-start text-label-2xs uppercase tracking-wider text-muted-foreground/70 transition-colors hover:text-muted-foreground"
-      >
-        <Brain size={11} strokeWidth={1.5} />
-        {streaming ? "thinking…" : "thought"}
-        <span className="text-muted-foreground/70">{open ? "−" : "+"}</span>
-      </button> */}
-      {open && (
+      {streaming && (
+        <div className="flex items-center gap-2">
+          <DotmSquare1
+            size={20}
+            dotSize={3}
+            animated
+            aria-label="Thinking"
+          />
+          <span className="text-paragraph-xs italic text-muted-foreground/70">
+            thinking…
+          </span>
+        </div>
+      )}
+      {open && text.trim() && (
         <Response
           className="my-1 pl-3 border-l-2 border-border italic text-muted-foreground [&_*]:text-muted-foreground"
         >

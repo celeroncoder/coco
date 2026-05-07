@@ -11,6 +11,7 @@ import {
   isReadTool,
   isWriteTool,
   parseGlobResult,
+  parseGrepArgs,
   parseGrepResult,
   parseReadArgs,
   parseWriteArgs,
@@ -110,11 +111,14 @@ export function ToolCall({
             }
             if (isGrepTool(name) && result) {
               const parsed = parseGrepResult(result);
+              const grepArgs = parseGrepArgs(args);
               if (parsed)
                 return (
                   <GrepCodeView
                     code={parsed.code}
                     matchCount={parsed.matchCount}
+                    pattern={grepArgs?.pattern}
+                    path={grepArgs?.path}
                   />
                 );
             }
