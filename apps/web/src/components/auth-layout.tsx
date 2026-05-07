@@ -109,7 +109,7 @@ function RightSidebarSlot() {
   return (
     <div
       ref={ref}
-      className="sticky top-0 h-svh shrink-0 overflow-hidden border-l border-border bg-background"
+      className="sticky top-0 h-svh shrink-0 overflow-hidden bg-background"
     />
   );
 }

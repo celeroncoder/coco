@@ -57,6 +57,7 @@ import {
   Wrench as PhWrench,
   X as PhX,
   ArrowsOutSimpleIcon as PhArrowsOutSimple,
+  SidebarIcon as PhSidebar,
 } from "@phosphor-icons/react";
 
 type PhosphorComponent = React.ForwardRefExoticComponent<
@@ -157,3 +158,4 @@ export const Wand2 = wrap(PhMagicWand, "Wand2");
 export const Wrench = wrap(PhWrench, "Wrench");
 export const X = wrap(PhX, "X");
 export const Expand = wrap(PhArrowsOutSimple, "Expand");
+export const PanelLeft = wrap(PhArrowLeft, "PanelLeft");

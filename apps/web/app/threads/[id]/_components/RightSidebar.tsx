@@ -5,11 +5,59 @@ import { createPortal } from "react-dom";
 import { Terminal as XtermTerminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
+import { useTheme } from "next-themes";
 import { X, ICON_SIZES } from "@/components/icons";
 import { Button } from "~/components/ui/button";
 import { ScrollArea } from "~/components/ui/scroll-area";
 import { Response } from "~/components/ai-elements/response";
 import { useRightSidebarRef } from "~/components/right-sidebar-context";
+import { cn } from "~/lib/utils";
+
+const XTERM_DARK_THEME = {
+  background: "#0d0d0d",
+  foreground: "#e0e0e0",
+  cursor: "#e0e0e0",
+  selectionBackground: "#e0e0e040",
+  black: "#1a1a1a",
+  red: "#d75f5f",
+  green: "#5f875f",
+  yellow: "#d7af5f",
+  blue: "#5f87af",
+  magenta: "#af5f87",
+  cyan: "#5fafaf",
+  white: "#c6c6c6",
+  brightBlack: "#767676",
+  brightRed: "#d7875f",
+  brightGreen: "#87af5f",
+  brightYellow: "#d7d787",
+  brightBlue: "#87afd7",
+  brightMagenta: "#d787d7",
+  brightCyan: "#87d7d7",
+  brightWhite: "#ffffff",
+};
+
+const XTERM_LIGHT_THEME = {
+  background: "#f8f8f8",
+  foreground: "#1a1a1a",
+  cursor: "#1a1a1a",
+  selectionBackground: "#1a1a1a30",
+  black: "#1a1a1a",
+  red: "#c0392b",
+  green: "#27ae60",
+  yellow: "#d68910",
+  blue: "#2980b9",
+  magenta: "#8e44ad",
+  cyan: "#16a085",
+  white: "#595959",
+  brightBlack: "#767676",
+  brightRed: "#e74c3c",
+  brightGreen: "#2ecc71",
+  brightYellow: "#f39c12",
+  brightBlue: "#3498db",
+  brightMagenta: "#9b59b6",
+  brightCyan: "#1abc9c",
+  brightWhite: "#1a1a1a",
+};
 
 const DEFAULT_LOCALTERM_PORT = 3417;
 const CONNECTING_TIMEOUT_MS = 10_000;
@@ -57,29 +105,21 @@ export function RightSidebar({
   const target = portalRef.current ?? document.body;
 
   return createPortal(
-    <div className="flex h-full w-lg max-w-full flex-col overflow-hidden bg-background">
+    <div className="flex h-full w-lg max-w-full flex-col overflow-hidden bg-sidebar text-sidebar-foreground pr-2 py-2">
       {/* header with tabs */}
-      <div className="flex h-10 shrink-0 items-center border-b border-border">
-        <div className="flex h-full flex-1 items-center">
+      <div className="flex h-10 shrink-0 items-center">
+        <div className="flex h-full flex-1 items-start">
           <button
             type="button"
             onClick={() => setActiveTab("plan")}
-            className={`flex h-full items-center gap-1.5 border-b-2 px-3 text-label-2xs font-medium transition-colors ${
-              activeTab === "plan"
-                ? "border-foreground text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
+            className={cn(`flex h-fit items-center gap-1.5 px-4 pt-2 pb-1 rounded-t-lg text-sm font-medium transition-colors`, activeTab === "plan" && "bg-muted border-b-2 border-primary")}
           >
             Plan
           </button>
           <button
             type="button"
             onClick={() => setActiveTab("terminal")}
-            className={`flex h-full items-center gap-1.5 border-b-2 px-3 text-label-2xs font-medium transition-colors ${
-              activeTab === "terminal"
-                ? "border-foreground text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
+            className={cn(`flex h-fit items-center gap-1.5 px-4 pt-2 pb-1 rounded-t-lg text-sm font-medium transition-colors`, activeTab === "terminal" && "bg-accent border-b-2 border-primary")}
           >
             Terminal
           </button>
@@ -136,14 +176,14 @@ function PlanPanel({
   return (
     <>
       <ScrollArea className="min-h-0 flex-1">
-        <div className="px-4 py-3 wrap-anywhere">
-          <div className="mb-2 font-mono text-[10px] text-muted-foreground">
+        <div className="px-4 py-1.5 wrap-anywhere">
+          {/* <div className="mb-2 font-mono text-[10px] text-muted-foreground">
             {plan.filePath}
-          </div>
+          </div> */}
           <Response>{plan.content}</Response>
         </div>
       </ScrollArea>
-      <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border px-3 py-2">
+      <div className="flex shrink-0 items-center justify-end gap-2 px-3 py-2">
         <Button onClick={onImplement} disabled={implementing}>
           {implementing ? "Implementing..." : "Implement Plan"}
         </Button>
@@ -160,7 +200,16 @@ function TerminalPanelContent({
   localtermPort: number;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const terminalRef = useRef<XtermTerminal | null>(null);
   const [status, setStatus] = useState<"connecting" | "connected" | "disconnected">("connecting");
+  const { resolvedTheme } = useTheme();
+
+  useEffect(() => {
+    const xtermTheme = resolvedTheme === "light" ? XTERM_LIGHT_THEME : XTERM_DARK_THEME;
+    if (terminalRef.current) {
+      terminalRef.current.options.theme = xtermTheme;
+    }
+  }, [resolvedTheme]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -172,35 +221,18 @@ function TerminalPanelContent({
     let resizeTimer: ReturnType<typeof setTimeout> | null = null;
 
     const fitAddon = new FitAddon();
+    const initialTheme = document.documentElement.classList.contains("light")
+      ? XTERM_LIGHT_THEME
+      : XTERM_DARK_THEME;
     const terminal = new XtermTerminal({
       allowProposedApi: true,
       cursorBlink: true,
       cursorStyle: "bar",
       fontSize: 13,
       fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
-      theme: {
-        background: "#0d0d0d",
-        foreground: "#e0e0e0",
-        cursor: "#e0e0e0",
-        selectionBackground: "#e0e0e040",
-        black: "#1a1a1a",
-        red: "#d75f5f",
-        green: "#5f875f",
-        yellow: "#d7af5f",
-        blue: "#5f87af",
-        magenta: "#af5f87",
-        cyan: "#5fafaf",
-        white: "#c6c6c6",
-        brightBlack: "#767676",
-        brightRed: "#d7875f",
-        brightGreen: "#87af5f",
-        brightYellow: "#d7d787",
-        brightBlue: "#87afd7",
-        brightMagenta: "#d787d7",
-        brightCyan: "#87d7d7",
-        brightWhite: "#ffffff",
-      },
+      theme: initialTheme,
     });
+    terminalRef.current = terminal;
 
     terminal.loadAddon(fitAddon);
     terminal.open(container);
@@ -299,15 +331,13 @@ function TerminalPanelContent({
       observer.disconnect();
       try { socket?.close(); } catch {}
       terminal.dispose();
+      terminalRef.current = null;
     };
   }, [localtermPort, workspacePath]);
 
   return (
     <>
-      <div className="flex items-center gap-2 border-b border-border px-3 py-1.5">
-        <span className="truncate text-[10px] text-muted-foreground">
-          {workspacePath || "~"}
-        </span>
+      <div className="flex items-center gap-2 px-3 py-1.5">
         {status === "connecting" && (
           <span className="shrink-0 text-[9px] text-yellow-400">connecting...</span>
         )}
@@ -315,9 +345,9 @@ function TerminalPanelContent({
           <span className="shrink-0 text-[9px] text-red-400">disconnected</span>
         )}
       </div>
-      <div ref={containerRef} className="min-h-0 flex-1 overflow-hidden" />
+      <div ref={containerRef} className="min-h-0 flex-1 overflow-hidden rounded-lg" />
       {status === "disconnected" && (
-        <div className="flex h-7 shrink-0 items-center justify-center border-t border-border bg-muted/30">
+        <div className="flex h-7 shrink-0 items-center justify-center border-t border-sidebar-border bg-sidebar-accent/50">
           <span className="text-[11px] text-muted-foreground">
             Run{" "}
             <code className="rounded bg-muted px-1 text-[10px]">
