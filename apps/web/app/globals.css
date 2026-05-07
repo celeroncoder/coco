@@ -2,6 +2,7 @@
 @import "streamdown/styles.css";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@import "../src/components/dotmatrix-loader.css";
 
 @custom-variant dark (&:is(.dark *));
 

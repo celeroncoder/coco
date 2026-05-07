@@ -52,9 +52,11 @@ import {
   TreeStructure as PhTreeStructure,
   Warning as PhWarning,
   WarningCircle as PhWarningCircle,
+  FunnelSimple as PhFunnelSimple,
   Question as PhQuestion,
   Wrench as PhWrench,
   X as PhX,
+  ArrowsOutSimpleIcon as PhArrowsOutSimple,
 } from "@phosphor-icons/react";
 
 type PhosphorComponent = React.ForwardRefExoticComponent<
@@ -128,6 +130,7 @@ export const Cpu = wrap(PhCpu, "Cpu");
 export const FileDiff = wrap(PhFileDiff, "FileDiff");
 export const FilePlus = wrap(PhFilePlus, "FilePlus");
 export const FileText = wrap(PhFileText, "FileText");
+export const Filter = wrap(PhFunnelSimple, "Filter");
 export const Folder = wrap(PhFolder, "Folder");
 export const FolderTree = wrap(PhTreeStructure, "FolderTree");
 export const Globe = wrap(PhGlobe, "Globe");
@@ -153,3 +156,4 @@ export const TriangleAlert = wrap(PhWarning, "TriangleAlert");
 export const Wand2 = wrap(PhMagicWand, "Wand2");
 export const Wrench = wrap(PhWrench, "Wrench");
 export const X = wrap(PhX, "X");
+export const Expand = wrap(PhArrowsOutSimple, "Expand");

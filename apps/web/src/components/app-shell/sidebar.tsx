@@ -1,23 +1,33 @@
 "use client";
 
-import { UserButton } from "@clerk/nextjs";
+import { UserButton, useUser } from "@clerk/nextjs";
 import { api } from "@coco/convex/api";
 import type { Doc, Id } from "@coco/convex/dataModel";
 import { useMutation, useQuery } from "convex/react";
 import {
+  ChevronDown,
+  ChevronRight,
+  Filter,
+  Folder,
   Moon,
-  MoreHorizontal,
-  Pencil,
   Plus,
+  Search,
   Settings,
   Sun,
+  X,
   ICON_SIZES,
 } from "@/components/icons";
 import { useTheme } from "next-themes";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Sidebar } from "~/components/ui/sidebar";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarHeader,
+  useSidebar,
+} from "~/components/ui/sidebar";
 import {
   Dialog,
   DialogContent,
@@ -28,398 +38,351 @@ import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
 import { defaultModeFor } from "~/lib/agents";
-
-const WS_COLORS = [
-  "#1e5c3a",
-  "#1a3d6b",
-  "#6b2d82",
-  "#3d1a7a",
-  "#7a1d6e",
-  "#0f4f4f",
-  "#7a1d1d",
-  "#4a5c0d",
-  "#1a4f3a",
-  "#1d3d82",
-  "#7a3d0d",
-  "#4a0d5c",
-];
-
-function wsColor(name: string): string {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = (name.charCodeAt(i) + ((h << 5) - h)) | 0;
-  return WS_COLORS[Math.abs(h) % WS_COLORS.length] ?? WS_COLORS[0]!;
-}
+import { useIsMobile } from "~/hooks/use-mobile";
 
 export function AppSidebar() {
   const workspaces = useQuery(api.workspaces.list, {});
   const threads = useQuery(api.threads.list, {});
   const devices = useQuery(api.devices.list, {});
-  const [selectedWsId, setSelectedWsId] = useState<string | null>(null);
-  const [hoveredWsId, setHoveredWsId] = useState<string | null>(null);
-  const [createOpen, setCreateOpen] = useState(false);
+  const { user } = useUser();
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [filter, setFilter] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [workspaceCreateOpen, setWorkspaceCreateOpen] = useState(false);
   const pathname = usePathname();
+  const { setOpenMobile } = useSidebar();
+  const isMobile = useIsMobile();
+  const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => setMounted(true), []);
 
-  useEffect(() => {
-    if (!workspaces?.length) return;
-    if (threads && pathname?.startsWith("/threads/")) {
-      const threadId = pathname.replace("/threads/", "");
-      const t = threads.find((th) => th._id === threadId);
-      if (t) {
-        setSelectedWsId(t.workspaceId);
-        return;
-      }
+  // The workspace of the currently open thread — used for "New Session"
+  const activeWsId = useMemo(() => {
+    if (!threads || !pathname?.startsWith("/threads/")) return workspaces?.[0]?._id;
+    const threadId = pathname.replace("/threads/", "");
+    const t = threads.find((th) => th._id === threadId);
+    return t?.workspaceId ?? workspaces?.[0]?._id;
+  }, [threads, workspaces, pathname]);
+
+  // Group workspaces by device, then filter threads
+  const deviceGroups = useMemo(() => {
+    if (!devices || !workspaces || !threads) return null;
+    const filteredThreads = filter
+      ? threads.filter((t) => t.title.toLowerCase().includes(filter.toLowerCase()))
+      : threads;
+    return devices.map((device) => ({
+      device,
+      workspaces: workspaces
+        .filter((ws) => ws.deviceId === device._id)
+        .map((ws) => ({
+          ws,
+          threads: filteredThreads
+            .filter((t) => t.workspaceId === ws._id)
+            .sort((a, b) => b._creationTime - a._creationTime),
+        })),
+    }));
+  }, [devices, workspaces, threads, filter]);
+
+  const handleNewSession = () => {
+    if (activeWsId) {
+      setCreateOpen(true);
     }
-    setSelectedWsId((prev) => prev ?? (workspaces[0]?._id ?? null));
-  }, [workspaces, threads, pathname]);
+  };
 
-  const selectedWs = workspaces?.find((w) => w._id === selectedWsId) ?? null;
-
-  const selectedThreads = useMemo(
-    () => threads?.filter((t) => t.workspaceId === selectedWsId) ?? [],
-    [threads, selectedWsId],
-  );
-
-  const hoveredWs = workspaces?.find((w) => w._id === hoveredWsId) ?? null;
-
-  const hoveredThreads = useMemo(
-    () => threads?.filter((t) => t.workspaceId === hoveredWsId).slice(0, 4) ?? [],
-    [threads, hoveredWsId],
-  );
-
-  const hoveredTotal = useMemo(
-    () => threads?.filter((t) => t.workspaceId === hoveredWsId).length ?? 0,
-    [threads, hoveredWsId],
-  );
+  const toggleSearch = () => {
+    setSearchOpen((v) => {
+      if (!v) setTimeout(() => searchRef.current?.focus(), 50);
+      else setFilter("");
+      return !v;
+    });
+  };
 
   return (
     <>
-      <Sidebar collapsible="offcanvas" className="bg-background p-0">
-        <div className="flex h-full">
-          {/* Left workspace strip */}
-          <div className="flex w-[60px] shrink-0 flex-col items-center border-r border-border bg-background">
-            {/* Workspace icon list */}
-            <div className="flex min-h-0 flex-1 flex-col items-center gap-2.5 overflow-y-auto py-2.5 px-1">
-              {workspaces?.map((ws) => {
-                const color = wsColor(ws.name);
-                const isSelected = ws._id === selectedWsId;
-                const isActive = threads?.some(
-                  (t) => t.workspaceId === ws._id && pathname === `/threads/${t._id}`,
-                );
-                return (
-                  <div
-                    key={ws._id}
-                    className="relative shrink-0"
-                    onMouseEnter={() => setHoveredWsId(ws._id)}
-                    onMouseLeave={() => setHoveredWsId(null)}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => setSelectedWsId(ws._id)}
-                      style={{ backgroundColor: color }}
-                      className={cn(
-                        "relative flex size-9 cursor-pointer select-none items-center justify-center rounded-md text-[11px] font-semibold tracking-wide text-white/90 transition-all",
-                        isSelected &&
-                          "ring-2 ring-foreground/70 ring-offset-1 ring-offset-background",
-                      )}
-                    >
-                      {ws.name[0]?.toUpperCase()}
-                      {isActive && (
-                        <span className="absolute -right-0.5 -top-0.5 size-2 rounded-full border border-background bg-cyan-400" />
-                      )}
-                    </button>
+      <Sidebar variant="inset" collapsible="offcanvas" className="">
+        <SidebarHeader className="gap-0 p-0">
+          <div className="flex flex-col px-1 pt-3 pb-1">
+            {/* New Session */}
+            <button
+              type="button"
+              onClick={handleNewSession}
+              className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-xs text-foreground/80 transition-colors hover:bg-accent hover:text-foreground"
+            >
+              <Plus size={13} strokeWidth={1.5} className="shrink-0 text-muted-foreground" />
+              New Session
+            </button>
 
-                    {/* Hover popup */}
-                    {hoveredWsId === ws._id && hoveredWs && (
-                      <div className="absolute left-[calc(100%+6px)] top-0 z-50 w-56 rounded-lg border border-border bg-popover p-2.5 shadow-lg">
-                        <p className="mb-0.5 text-xs font-medium text-foreground">
-                          {hoveredWs.name}
-                        </p>
-                        <p className="mb-1.5 text-[10px] text-muted-foreground">Recent sessions</p>
-                        <div className="flex flex-col gap-0.5">
-                          {hoveredThreads.map((t) => (
-                            <Link
-                              key={t._id}
-                              href={`/threads/${t._id}`}
-                              onClick={() => setSelectedWsId(ws._id)}
-                              className="truncate rounded px-1.5 py-1 text-xs text-foreground/80 hover:bg-accent hover:text-foreground"
-                            >
-                              {t.title}
-                            </Link>
-                          ))}
-                          {hoveredThreads.length === 0 && (
-                            <span className="px-1.5 text-[10px] text-muted-foreground">
-                              No sessions yet
-                            </span>
-                          )}
-                        </div>
-                        {hoveredTotal > 4 && (
-                          <>
-                            <div className="my-1.5 h-px bg-border" />
-                            <button
-                              type="button"
-                              onClick={() => setSelectedWsId(ws._id)}
-                              className="px-1.5 text-xs text-muted-foreground hover:text-foreground"
-                            >
-                              View all sessions
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+            {/* Add Workspace */}
+            <button
+              type="button"
+              onClick={() => setWorkspaceCreateOpen(true)}
+              className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-xs text-foreground/80 transition-colors hover:bg-accent hover:text-foreground"
+            >
+              <Plus size={13} strokeWidth={1.5} className="shrink-0 text-muted-foreground" />
+              Add Workspace
+            </button>
 
-              {/* Add workspace */}
-              <button
-                type="button"
-                title="Add workspace"
-                onClick={() => setCreateOpen(true)}
-                className="flex size-9 shrink-0 items-center justify-center rounded-md text-muted-foreground/60 transition-colors hover:bg-accent hover:text-muted-foreground"
-              >
-                <Plus size={14} strokeWidth={1.5} />
-              </button>
-            </div>
-
-            {/* Bottom actions */}
-            <div className="flex flex-col items-center gap-0.5 pb-2 pt-1">
-              <div className="flex size-8 items-center justify-center">
-                <UserButton appearance={{ elements: { avatarBox: "size-6" } }} />
+            {/* Search row — disabled for now */}
+            {/* {searchOpen ? (
+              <div className="flex items-center gap-2 px-2.5 py-1">
+                <Search size={13} strokeWidth={1.5} className="shrink-0 text-muted-foreground" />
+                <input
+                  ref={searchRef}
+                  value={filter}
+                  onChange={(e) => setFilter(e.target.value)}
+                  placeholder="Search sessions…"
+                  className="flex-1 bg-transparent text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={toggleSearch}
+                  className="shrink-0 text-muted-foreground hover:text-foreground"
+                >
+                  <X size={12} strokeWidth={1.5} />
+                </button>
               </div>
-              <Link
-                href="/devices"
-                title="Settings"
-                className="flex size-8 items-center justify-center rounded-md text-muted-foreground/60 transition-colors hover:bg-accent hover:text-muted-foreground"
-              >
-                <Settings size={13} strokeWidth={1.5} />
-              </Link>
-              <button
-                type="button"
-                title="Toggle theme"
-                onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-                className="flex size-8 items-center justify-center rounded-md text-muted-foreground/60 transition-colors hover:bg-accent hover:text-muted-foreground"
-              >
-                {mounted && resolvedTheme === "dark" ? (
-                  <Sun size={13} strokeWidth={1.5} />
-                ) : (
-                  <Moon size={13} strokeWidth={1.5} />
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* Right workspace panel */}
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
-            {selectedWs ? (
-              <WorkspacePanel
-                ws={selectedWs}
-                threads={selectedThreads}
-                pathname={pathname}
-              />
             ) : (
-              <div className="flex h-full items-center justify-center text-[10px] text-muted-foreground">
-                Select a workspace
-              </div>
-            )}
+              <button
+                type="button"
+                onClick={toggleSearch}
+                className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              >
+                <Search size={13} strokeWidth={1.5} className="shrink-0" />
+                Search
+              </button>
+            )} */}
           </div>
-        </div>
+
+          {/* Divider + Projects header */}
+          <div className="mx-3 mt-2 mb-1 flex items-center justify-between">
+            <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground/60">
+              Projects
+            </span>
+            {/* <button
+              type="button"
+              className="text-muted-foreground/40 transition-colors hover:text-muted-foreground"
+              title="Filter"
+            >
+              <Filter size={11} strokeWidth={1.5} />
+            </button> */}
+          </div>
+        </SidebarHeader>
+
+        <SidebarContent className="px-1 pb-2">
+          {deviceGroups === null && (
+            <p className="px-3 py-2 text-[10px] text-muted-foreground/60">Loading…</p>
+          )}
+          {deviceGroups?.map(({ device, workspaces }) => (
+            <DeviceGroup
+              key={device._id}
+              device={device}
+              workspaces={workspaces}
+              pathname={pathname}
+              onNavigate={() => isMobile && setOpenMobile(false)}
+            />
+          ))}
+        </SidebarContent>
+
+        <SidebarFooter className="p-0">
+          <div className="mx-2 mb-2 h-px bg-border/60" />
+          <div className="flex items-center gap-2.5 px-3 pb-3">
+            <UserButton appearance={{ elements: { avatarBox: "size-7" } }} />
+            <span className="flex-1 truncate text-xs font-medium text-foreground">
+              {user?.fullName ?? user?.username ?? "Account"}
+            </span>
+            <button
+              type="button"
+              onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+              className="shrink-0 text-muted-foreground/50 transition-colors hover:text-muted-foreground"
+              title="Toggle theme"
+            >
+              {mounted && resolvedTheme === "dark" ? (
+                <Sun size={13} strokeWidth={1.5} />
+              ) : (
+                <Moon size={13} strokeWidth={1.5} />
+              )}
+            </button>
+            <Link
+              href="/devices"
+              className="shrink-0 text-muted-foreground/50 transition-colors hover:text-muted-foreground"
+              title="Settings"
+            >
+              <Settings size={13} strokeWidth={1.5} />
+            </Link>
+          </div>
+        </SidebarFooter>
       </Sidebar>
 
-      {/* Create workspace dialog */}
-      <CreateWorkspaceDialog
+      <CreateSessionDialog
         open={createOpen}
         onClose={() => setCreateOpen(false)}
+        workspaces={workspaces ?? []}
+        defaultWsId={activeWsId}
+      />
+
+      <AddWorkspaceDialog
+        open={workspaceCreateOpen}
+        onClose={() => setWorkspaceCreateOpen(false)}
         devices={devices ?? []}
-        onCreated={(id) => {
-          setSelectedWsId(id);
-          setCreateOpen(false);
-        }}
       />
     </>
   );
 }
 
-function WorkspacePanel({
+function DeviceGroup({
+  device,
+  workspaces,
+  pathname,
+  onNavigate,
+}: {
+  device: Doc<"devices">;
+  workspaces: { ws: Doc<"workspaces">; threads: Doc<"threads">[] }[];
+  pathname: string | null;
+  onNavigate: () => void;
+}) {
+  const [open, setOpen] = useState(true);
+
+  return (
+    <div className="mb-1">
+      {/* Device header */}
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center gap-1.5 rounded-md px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70 transition-colors hover:text-muted-foreground"
+      >
+        {open ? (
+          <ChevronDown size={11} strokeWidth={1.5} className="shrink-0" />
+        ) : (
+          <ChevronRight size={11} strokeWidth={1.5} className="shrink-0" />
+        )}
+        {formatDeviceName(device.name)}
+      </button>
+
+      {open && (
+        <div className="mt-0.5">
+          {workspaces.map(({ ws, threads }) => (
+            <WorkspaceGroup
+              key={ws._id}
+              ws={ws}
+              threads={threads}
+              pathname={pathname}
+              onNavigate={onNavigate}
+            />
+          ))}
+          {workspaces.length === 0 && (
+            <p className="py-1 pl-8 text-[10px] text-muted-foreground/40">No workspaces</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function WorkspaceGroup({
   ws,
   threads,
   pathname,
+  onNavigate,
 }: {
   ws: Doc<"workspaces">;
   threads: Doc<"threads">[];
   pathname: string | null;
+  onNavigate: () => void;
+}) {
+  const [open, setOpen] = useState(true);
+
+  return (
+    <div>
+      {/* Workspace row */}
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center gap-2 rounded-md py-1 pl-5 pr-2.5 text-xs text-foreground/70 transition-colors hover:bg-accent/40 hover:text-foreground"
+      >
+        <Folder size={13} strokeWidth={1.5} className="shrink-0 text-muted-foreground/60" />
+        <span className="flex-1 truncate text-left">{ws.name}</span>
+        {threads.length > 0 && (
+          open
+            ? <ChevronDown size={10} strokeWidth={1.5} className="shrink-0 text-muted-foreground/40" />
+            : <ChevronRight size={10} strokeWidth={1.5} className="shrink-0 text-muted-foreground/40" />
+        )}
+      </button>
+
+      {/* Thread list under workspace */}
+      {open && threads.length > 0 && (
+        <div className="mb-1">
+          {threads.map((t) => {
+            const isActive = pathname === `/threads/${t._id}`;
+            return (
+              <Link
+                key={t._id}
+                href={`/threads/${t._id}`}
+                onClick={onNavigate}
+                className={cn(
+                  "flex w-full items-center justify-between gap-2 rounded-md py-1 pl-10 pr-2.5 transition-colors",
+                  isActive
+                    ? "bg-muted text-foreground"
+                    : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+                )}
+              >
+                <span
+                  className={cn(
+                    "min-w-0 flex-1 truncate text-xs",
+                    isActive && "font-medium",
+                  )}
+                >
+                  {t.title}
+                </span>
+                <span className="shrink-0 text-[10px] text-muted-foreground/50">
+                  {formatRelative(t._creationTime)}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CreateSessionDialog({
+  open,
+  onClose,
+  workspaces,
+  defaultWsId,
+}: {
+  open: boolean;
+  onClose: () => void;
+  workspaces: Doc<"workspaces">[];
+  defaultWsId: string | undefined;
 }) {
   const create = useMutation(api.threads.create);
   const router = useRouter();
+  const [wsId, setWsId] = useState<string>(defaultWsId ?? "");
   const [busy, setBusy] = useState(false);
-  const [propsOpen, setPropsOpen] = useState(false);
-  const threadListRef = useRef<HTMLDivElement>(null);
-  const [canScrollDown, setCanScrollDown] = useState(false);
-
-  const checkScroll = () => {
-    const el = threadListRef.current;
-    if (!el) return;
-    setCanScrollDown(el.scrollTop + el.clientHeight < el.scrollHeight - 4);
-  };
 
   useEffect(() => {
-    checkScroll();
-  }, [threads]);
+    if (defaultWsId && !wsId) setWsId(defaultWsId);
+  }, [defaultWsId, wsId]);
 
-  const start = async () => {
-    if (busy) return;
+  useEffect(() => {
+    if (open && defaultWsId) setWsId(defaultWsId);
+  }, [open, defaultWsId]);
+
+  const submit = async () => {
+    if (!wsId || busy) return;
     setBusy(true);
     try {
       const id = await create({
-        workspaceId: ws._id as Id<"workspaces">,
+        workspaceId: wsId as Id<"workspaces">,
         agent: "claude",
         mode: defaultModeFor("claude"),
         title: "Claude Code session",
       });
+      onClose();
       router.push(`/threads/${id}`);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const displayPath = ws.path?.replace(/^\/Users\/[^/]+/, "~") ?? ws.path ?? "";
-
-  return (
-    <>
-      <div className="flex min-h-0 flex-1 flex-col">
-        {/* Workspace header */}
-        <div className="flex items-start justify-between px-3 pb-2 pt-3">
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-medium leading-tight text-foreground">
-              {ws.name}
-            </p>
-            <p className="truncate text-[10px] text-muted-foreground">{displayPath}</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setPropsOpen(true)}
-            className="ml-1.5 shrink-0 rounded p-0.5 text-muted-foreground/50 transition-colors hover:text-muted-foreground"
-          >
-            <MoreHorizontal size={13} strokeWidth={1.5} />
-          </button>
-        </div>
-
-        {/* New session button */}
-        <div className="px-2.5 pb-2">
-          <button
-            type="button"
-            onClick={start}
-            disabled={busy}
-            className="flex w-full items-center justify-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-40"
-          >
-            <Pencil size={11} strokeWidth={1.5} />
-            New session
-          </button>
-        </div>
-
-        {/* Thread list — scrollable with bottom blur */}
-        <div className="relative min-h-0 flex-1">
-          <div
-            ref={threadListRef}
-            onScroll={checkScroll}
-            className="h-full overflow-y-auto px-1.5 pb-2"
-          >
-            {threads.map((t) => {
-              const isActive = pathname === `/threads/${t._id}`;
-              return (
-                <Link
-                  key={t._id}
-                  href={`/threads/${t._id}`}
-                  className={cn(
-                    "block truncate rounded-md px-2 py-1.5 text-xs transition-colors",
-                    isActive
-                      ? "bg-muted text-foreground"
-                      : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
-                  )}
-                >
-                  {t.title}
-                </Link>
-              );
-            })}
-            {threads.length === 0 && (
-              <p className="px-2 py-1.5 text-[10px] text-muted-foreground/60">No sessions yet.</p>
-            )}
-          </div>
-
-          {/* Scroll blur overlay */}
-          {canScrollDown && (
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-linear-to-t from-background to-transparent" />
-          )}
-        </div>
-      </div>
-
-      {/* Workspace properties dialog */}
-      <Dialog open={propsOpen} onOpenChange={setPropsOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Workspace properties</DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col gap-3 pt-1">
-            <div>
-              <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                Name
-              </p>
-              <p className="text-xs">{ws.name}</p>
-            </div>
-            <div>
-              <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                Path
-              </p>
-              <p className="break-all font-mono text-xs">{ws.path}</p>
-            </div>
-            {/* editing disabled for now */}
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
-  );
-}
-
-function CreateWorkspaceDialog({
-  open,
-  onClose,
-  devices,
-  onCreated,
-}: {
-  open: boolean;
-  onClose: () => void;
-  devices: Doc<"devices">[];
-  onCreated: (id: string) => void;
-}) {
-  const create = useMutation(api.workspaces.create);
-  const [name, setName] = useState("");
-  const [path, setPath] = useState("");
-  const [deviceId, setDeviceId] = useState<string>("");
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    if (devices.length > 0 && !deviceId) {
-      setDeviceId(devices[0]!._id);
-    }
-  }, [devices, deviceId]);
-
-  const canSubmit = name.trim().length > 0 && path.trim().length > 0 && deviceId;
-
-  const submit = async () => {
-    if (!canSubmit || busy) return;
-    setBusy(true);
-    try {
-      const id = await create({
-        deviceId: deviceId as Id<"devices">,
-        name: name.trim(),
-        path: path.trim(),
-      });
-      setName("");
-      setPath("");
-      onCreated(id);
     } finally {
       setBusy(false);
     }
@@ -429,45 +392,22 @@ function CreateWorkspaceDialog({
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Create workspace</DialogTitle>
+          <DialogTitle>New session</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-3.5 pt-1">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-              Name
-            </label>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="my-project"
-              className="h-8 text-xs"
-              autoFocus
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-              Path
-            </label>
-            <Input
-              value={path}
-              onChange={(e) => setPath(e.target.value)}
-              placeholder="/Users/you/projects/my-project"
-              className="h-8 font-mono text-xs"
-            />
-          </div>
-          {devices.length > 1 && (
+          {workspaces.length > 1 && (
             <div className="flex flex-col gap-1.5">
               <label className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                Device
+                Workspace
               </label>
               <select
-                value={deviceId}
-                onChange={(e) => setDeviceId(e.target.value)}
+                value={wsId}
+                onChange={(e) => setWsId(e.target.value)}
                 className="h-8 rounded-md border border-border bg-background px-2.5 text-xs text-foreground"
               >
-                {devices.map((d) => (
-                  <option key={d._id} value={d._id}>
-                    {d.name}
+                {workspaces.map((ws) => (
+                  <option key={ws._id} value={ws._id}>
+                    {ws.name}
                   </option>
                 ))}
               </select>
@@ -477,7 +417,122 @@ function CreateWorkspaceDialog({
             <Button variant="ghost" size="sm" onClick={onClose} disabled={busy}>
               Cancel
             </Button>
-            <Button size="sm" onClick={submit} disabled={!canSubmit || busy}>
+            <Button size="sm" onClick={submit} disabled={!wsId || busy}>
+              Create
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function formatDeviceName(name: string): string {
+  const short = name.split("-")[0] ?? name;
+  // Add ellipsis only when the full name is longer than the limit
+  const limit = 15;
+  return name.length > limit ? (short.slice(0, limit) + "…") : short;
+}
+
+function formatRelative(ts: number): string {
+  const diff = Date.now() - ts;
+  const m = Math.round(diff / 60_000);
+  if (m < 1) return "now";
+  if (m < 60) return `${m}m`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h}h`;
+  const d = Math.round(h / 24);
+  return `${d}d`;
+}
+
+function AddWorkspaceDialog({
+  open,
+  onClose,
+  devices,
+}: {
+  open: boolean;
+  onClose: () => void;
+  devices: Doc<"devices">[];
+}) {
+  const create = useMutation(api.workspaces.create);
+  const [deviceId, setDeviceId] = useState(devices[0]?._id ?? "");
+  const [name, setName] = useState("");
+  const [path, setPath] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setDeviceId(devices[0]?._id ?? "");
+      setName("");
+      setPath("");
+    }
+  }, [open, devices]);
+
+  const submit = async () => {
+    if (!deviceId || !name || !path || busy) return;
+    setBusy(true);
+    try {
+      await create({
+        deviceId: deviceId as Id<"devices">,
+        name,
+        path,
+      });
+      onClose();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add workspace</DialogTitle>
+        </DialogHeader>
+        <div className="flex flex-col gap-3.5 pt-1">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              Device
+            </label>
+            <select
+              value={deviceId}
+              onChange={(e) => setDeviceId(e.target.value)}
+              className="h-8 rounded-md border border-border bg-background px-2.5 text-xs text-foreground"
+            >
+              {devices.map((d) => (
+                <option key={d._id} value={d._id}>
+                  {d.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              Name
+            </label>
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="my-project"
+              className="h-8 text-xs"
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              Path
+            </label>
+            <Input
+              value={path}
+              onChange={(e) => setPath(e.target.value)}
+              placeholder="/Users/you/code/project"
+              className="h-8 font-mono text-xs"
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-1">
+            <Button variant="ghost" size="sm" onClick={onClose} disabled={busy}>
+              Cancel
+            </Button>
+            <Button size="sm" onClick={submit} disabled={!deviceId || !name || !path || busy}>
               Create
             </Button>
           </div>
