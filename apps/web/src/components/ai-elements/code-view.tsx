@@ -6,7 +6,8 @@ import { codeToHtml } from "shiki/bundle/web";
 import { cn } from "~/lib/utils";
 
 type CodeViewProps = {
-  filePath: string;
+  filePath?: string;
+  language?: string;
   code: string;
   isIncomplete?: boolean;
   className?: string;
@@ -134,11 +135,12 @@ function stripReadLineNumbers(code: string): string {
 
 export function CodeView({
   filePath,
+  language: languageProp,
   code,
   isIncomplete,
   className,
 }: CodeViewProps) {
-  const language = languageFromPath(filePath);
+  const language = languageProp ?? (filePath ? languageFromPath(filePath) : "text");
   const { resolvedTheme } = useTheme();
   const theme = resolvedTheme === "dark" ? "github-dark" : "github-light";
   const [html, setHtml] = useState<string | null>(null);
@@ -169,12 +171,14 @@ export function CodeView({
 
   return (
     <div className={cn("mt-1 flex flex-col gap-1", className)}>
-      <div
-        className="font-mono text-label-2xs text-muted-foreground/70 truncate"
-        title={filePath}
-      >
-        {truncatePath(filePath)}
-      </div>
+      {filePath ? (
+        <div
+          className="font-mono text-label-2xs text-muted-foreground/70 truncate"
+          title={filePath}
+        >
+          {truncatePath(filePath)}
+        </div>
+      ) : null}
       {html ? (
         <div className={baseClass} dangerouslySetInnerHTML={{ __html: html }} />
       ) : (

@@ -2,9 +2,28 @@
 
 import { memo, useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Streamdown, defaultTranslations, type LinkSafetyModalProps } from "streamdown";
+import { CodeView } from "@/components/ai-elements/code-view";
+import { Streamdown, defaultTranslations, type CustomRendererProps, type LinkSafetyModalProps } from "streamdown";
 import { cn } from "~/lib/utils";
 import { Check, Copy, Globe, X, ICON_SIZES } from "@/components/icons";
+
+function ResponseCodeBlock({ code, language, isIncomplete }: CustomRendererProps) {
+  return <CodeView code={code} language={language} isIncomplete={isIncomplete} />;
+}
+
+const CODE_BLOCK_LANGUAGES = [
+  "typescript", "tsx", "ts", "javascript", "js", "jsx", "json", "jsonc",
+  "markdown", "md", "mdx", "css", "scss", "html", "python", "py", "ruby", "rb",
+  "go", "rust", "rs", "java", "c", "cpp", "csharp", "cs", "php", "swift",
+  "kotlin", "kt", "bash", "sh", "shell", "zsh", "yaml", "yml", "toml",
+  "sql", "graphql", "gql", "vue", "svelte", "prisma", "docker",
+  "dockerfile", "xml", "diff", "ini", "text", "plaintext",
+];
+
+const codeRenderers = CODE_BLOCK_LANGUAGES.map((lang) => ({
+  language: lang,
+  component: ResponseCodeBlock,
+}));
 
 function LinkSafetyModal({ url, isOpen, onClose, onConfirm }: LinkSafetyModalProps) {
   const [copied, setCopied] = useState(false);
@@ -128,14 +147,13 @@ export const Response = memo(
   ({ className, ...props }: ResponseProps) => (
     <Streamdown
       linkSafety={linkSafetyConfig}
+      plugins={{ renderers: codeRenderers }}
       className={cn(
         "streamdown-response w-full max-w-none text-paragraph-sm leading-relaxed text-foreground",
         // tighten default prose-y spacing
         "[&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
         "[&_p]:my-2",
-        "[&_pre]:my-3 [&_pre]:overflow-x-auto [&_pre]:rounded-lg [&_pre]:border [&_pre]:border-border [&_pre]:bg-muted [&_pre]:p-3 [&_pre]:text-label-xs",
         "[&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-label-xs",
-        "[&_pre_code]:bg-transparent [&_pre_code]:p-0",
         "[&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5",
         "[&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5",
         "[&_li]:my-0.5",
