@@ -112,14 +112,20 @@ export function RightSidebar({
           <button
             type="button"
             onClick={() => setActiveTab("plan")}
-            className={cn(`flex h-fit items-center gap-1.5 px-4 pt-2 pb-1 rounded-t-lg text-sm font-medium transition-colors`, activeTab === "plan" && "bg-muted border-b-2 border-primary")}
+            className={cn(
+              `flex h-fit items-center gap-1.5 px-4 pt-2 pb-1 rounded-t-lg text-sm font-medium transition-colors`,
+              activeTab === "plan" && "bg-muted border-b-2 border-primary",
+            )}
           >
             Plan
           </button>
           <button
             type="button"
             onClick={() => setActiveTab("terminal")}
-            className={cn(`flex h-fit items-center gap-1.5 px-4 pt-2 pb-1 rounded-t-lg text-sm font-medium transition-colors`, activeTab === "terminal" && "bg-accent border-b-2 border-primary")}
+            className={cn(
+              `flex h-fit items-center gap-1.5 px-4 pt-2 pb-1 rounded-t-lg text-sm font-medium transition-colors`,
+              activeTab === "terminal" && "bg-accent border-b-2 border-primary",
+            )}
           >
             Terminal
           </button>
@@ -173,22 +179,63 @@ function PlanPanel({
     );
   }
 
+  const scrollRootRef = useRef<HTMLDivElement>(null);
+  const [canScrollUp, setCanScrollUp] = useState(false);
+  const [canScrollDown, setCanScrollDown] = useState(false);
+
+  useEffect(() => {
+    const root = scrollRootRef.current;
+    if (!root) return;
+    const viewport = root.querySelector<HTMLElement>(
+      '[data-slot="scroll-area-viewport"]',
+    );
+    if (!viewport) return;
+
+    const update = () => {
+      const { scrollTop, scrollHeight, clientHeight } = viewport;
+      setCanScrollUp(scrollTop > 1);
+      setCanScrollDown(scrollTop + clientHeight < scrollHeight - 1);
+    };
+
+    update();
+    viewport.addEventListener("scroll", update, { passive: true });
+    const ro = new ResizeObserver(update);
+    ro.observe(viewport);
+    const mo = new MutationObserver(update);
+    mo.observe(viewport, { childList: true, subtree: true, characterData: true });
+
+    return () => {
+      viewport.removeEventListener("scroll", update);
+      ro.disconnect();
+      mo.disconnect();
+    };
+  }, [plan.content]);
+
   return (
-    <>
-      <ScrollArea className="min-h-0 flex-1">
+    <div className="relative min-h-0 flex-1">
+      <ScrollArea ref={scrollRootRef} className="h-full">
         <div className="px-4 py-1.5 wrap-anywhere">
-          {/* <div className="mb-2 font-mono text-[10px] text-muted-foreground">
-            {plan.filePath}
-          </div> */}
           <Response>{plan.content}</Response>
         </div>
       </ScrollArea>
-      <div className="flex shrink-0 items-center justify-end gap-2 px-3 py-2">
+      <div
+        className={cn(
+          "pointer-events-none absolute inset-x-0 top-0 h-8 bg-gradient-to-b from-sidebar to-transparent transition-opacity duration-150",
+          canScrollUp ? "opacity-100" : "opacity-0",
+        )}
+      />
+      <div
+        className={cn(
+          "pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-sidebar to-transparent transition-opacity duration-150",
+          canScrollDown ? "opacity-100" : "opacity-0",
+        )}
+      />
+      {/* <div className="flex shrink-0 items-center justify-end gap-2 px-3 py-2">
         <Button onClick={onImplement} disabled={implementing}>
           {implementing ? "Implementing..." : "Implement Plan"}
         </Button>
-      </div>
-    </>
+      </div> */}
+    </div>
   );
 }
 
@@ -201,11 +248,14 @@ function TerminalPanelContent({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<XtermTerminal | null>(null);
-  const [status, setStatus] = useState<"connecting" | "connected" | "disconnected">("connecting");
+  const [status, setStatus] = useState<
+    "connecting" | "connected" | "disconnected"
+  >("connecting");
   const { resolvedTheme } = useTheme();
 
   useEffect(() => {
-    const xtermTheme = resolvedTheme === "light" ? XTERM_LIGHT_THEME : XTERM_DARK_THEME;
+    const xtermTheme =
+      resolvedTheme === "light" ? XTERM_LIGHT_THEME : XTERM_DARK_THEME;
     if (terminalRef.current) {
       terminalRef.current.options.theme = xtermTheme;
     }
@@ -286,18 +336,27 @@ function TerminalPanelContent({
         fitToContainer();
 
         if (workspacePath) {
-          ws.send(JSON.stringify({ type: "input", data: `cd "${workspacePath}" && clear\n` }));
+          ws.send(
+            JSON.stringify({
+              type: "input",
+              data: `cd "${workspacePath}" && clear\n`,
+            }),
+          );
         }
       });
 
       ws.addEventListener("message", (event) => {
         if (disposed || socket !== ws) return;
         try {
-          const msg = JSON.parse(typeof event.data === "string" ? event.data : String(event.data));
+          const msg = JSON.parse(
+            typeof event.data === "string" ? event.data : String(event.data),
+          );
           if (msg.type === "output") {
             terminal.write(msg.data);
           } else if (msg.type === "exit") {
-            terminal.write(`\r\n\u001b[33m[shell exited with code ${msg.code ?? "null"}]\u001b[0m\r\n`);
+            terminal.write(
+              `\r\n\u001b[33m[shell exited with code ${msg.code ?? "null"}]\u001b[0m\r\n`,
+            );
           }
         } catch {
           // ignore malformed messages
@@ -329,7 +388,9 @@ function TerminalPanelContent({
       if (connectTimer !== null) clearTimeout(connectTimer);
       if (resizeTimer !== null) clearTimeout(resizeTimer);
       observer.disconnect();
-      try { socket?.close(); } catch {}
+      try {
+        socket?.close();
+      } catch {}
       terminal.dispose();
       terminalRef.current = null;
     };
@@ -339,13 +400,18 @@ function TerminalPanelContent({
     <>
       <div className="flex items-center gap-2 px-3 py-1.5">
         {status === "connecting" && (
-          <span className="shrink-0 text-[9px] text-yellow-400">connecting...</span>
+          <span className="shrink-0 text-[9px] text-yellow-400">
+            connecting...
+          </span>
         )}
         {status === "disconnected" && (
           <span className="shrink-0 text-[9px] text-red-400">disconnected</span>
         )}
       </div>
-      <div ref={containerRef} className="min-h-0 flex-1 overflow-hidden rounded-lg" />
+      <div
+        ref={containerRef}
+        className="min-h-0 flex-1 overflow-hidden rounded-lg"
+      />
       {status === "disconnected" && (
         <div className="flex h-7 shrink-0 items-center justify-center border-t border-sidebar-border bg-sidebar-accent/50">
           <span className="text-[11px] text-muted-foreground">
