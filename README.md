@@ -2,6 +2,8 @@
 
 Pair a local machine, pick a workspace, and run local CLI agents (Claude Code, Codex, etc.) from the web. Responses stream back live.
 
+> CLAUDE CODE only for now support for other agents coming soon...
+
 ## Architecture
 
 ```
